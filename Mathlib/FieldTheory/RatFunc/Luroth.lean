@@ -141,26 +141,40 @@ theorem finrank_eq_natDegree_minpoly :
   sorry -- use `IntermediateField.adjoin.finrank`
 
 theorem transcendental_polynomial : Algebra.Transcendental K K(X) := by
-  sorry -- show that `rfX` is a transcendental element
+  use rfX
+  rintro ⟨g, gnotzero, grfXzero⟩
+  simp only [aeval_algebraMap_eq_zero_iff, aeval_X_left, AlgHom.coe_id, id_eq] at grfXzero
+  contradiction
 
-theorem transcendental_adjoin_div : Algebra.Transcendental K K⟮f⟯ := by
-  have htrans := transcendental_polynomial p q hp hq coprime
-  have := isAlgebraic_adjoin_div p q hp hq coprime
+theorem transcendental_adjoin_div (hq : 0 < q.natDegree) : Algebra.Transcendental K K⟮f⟯ := by
+  have htrans := transcendental_polynomial p q  coprime
+  have := isAlgebraic_adjoin_div p q coprime hq
   rw [Algebra.transcendental_iff_not_isAlgebraic] at ⊢ htrans
   intro H
   exact htrans (Algebra.IsAlgebraic.trans K K⟮f⟯ K(X))
 
-theorem transcendental_div : Transcendental K f := by
-  sorry -- argue by contradiction using `IntermediateField.isAlgebraic_adjoin`
+theorem transcendental_div (hq : 0 < q.natDegree) : Transcendental K f := by
+  intro h
+  have h₁ : Algebra.IsAlgebraic K K⟮f⟯ := by
+    apply IntermediateField.isAlgebraic_adjoin_simple
+    exact h.isIntegral
+  have h₂ : Algebra.IsAlgebraic K⟮f⟯ K(X) := by
+    exact isAlgebraic_adjoin_div p q coprime hq
+  have h₃ : Algebra.IsAlgebraic K K(X) := by
+    exact Algebra.IsAlgebraic.trans K K⟮f⟯ K(X)
+  have h₄ : Algebra.Transcendental K K(X) := by
+    exact transcendental_polynomial p q coprime
+  rw [Algebra.transcendental_iff_not_isAlgebraic] at h₄
+  contradiction
 
 local notation "K[f]" => Algebra.adjoin K {f}
 
-def algEquivOfTranscendental : K[X] ≃ₐ[K] K[f] :=
+def algEquivOfTranscendental (hq : 0 < q.natDegree) : K[X] ≃ₐ[K] K[f] :=
   sorry -- use `AlgEquiv.ofBijective`:
   -- `transcendental_div` and `transcendental_iff_injective` gives injectivity
 
-lemma algEquivOfTranscendental_apply_X :
-    algEquivOfTranscendental p q X = ⟨f, Algebra.subset_adjoin rfl⟩ := by
+lemma algEquivOfTranscendental_apply_X (hq : 0 < q.natDegree) :
+    algEquivOfTranscendental p q hq X = ⟨f, Algebra.subset_adjoin rfl⟩ := by
   sorry
 
 #synth EuclideanDomain K[X] -- Polynomial.instEuclideanDomain
@@ -175,14 +189,13 @@ theorem isIntegrallyClosed_adjoin_div : IsIntegrallyClosed K[f] := by
 If moreover `p` is monic, then `minpolyDiv p q` is also monic. For convenience, we shall assume
 these conditions henceforth. -/
 
-variable (lt : q.natDegree < p.natDegree)
+variable (lt : q.natDegree ≤ p.natDegree)(monic : p.Monic)
+include monic
 include lt
 
 theorem natDegree_minpolyDiv : (minpolyDiv p q).natDegree = p.natDegree := by
   sorry
 
-variable (monic : p.Monic)
-include monic
 
 theorem monic_minpolyDiv : (minpolyDiv p q).Monic := by
   sorry
