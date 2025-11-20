@@ -52,6 +52,20 @@ theorem C_toRatFunc (a : K) : (C a).toRatFunc = algebraMap K K(X) a := rfl
 
 set_option quotPrecheck false
 
+section swap
+
+abbrev swap : K[X][X] ≃+* K[X][X] :=
+  .ofRingHom (eval₂RingHom (mapRingHom C) (C X)) (eval₂RingHom (mapRingHom C) (C X))
+    (by ext <;> simp) (by ext <;> simp)
+
+@[simp]
+theorem swap_C (e : K[X]) : swap (C e) = e.map (algebraMap K K[X]) := by simp
+
+@[simp]
+theorem swap_X : swap (X : K[X][X]) = C X := by simp
+
+end swap
+
 variable (p q : K[X]) (coprime : IsCoprime p q)
 include coprime
 
@@ -186,6 +200,11 @@ def algEquivOfTranscendental (hq : 0 < q.natDegree) : K[X] ≃ₐ[K] K[f] := by
   · rw [←AlgHom.range_eq_top, eq_top_iff]
     sorry
 
+def adjoin_f_NormalizedGCDMonoid (hq : 0 < q.natDegree) : NormalizedGCDMonoid K[f] :=
+  have : UniqueFactorizationMonoid K[f]
+    := (algEquivOfTranscendental p q coprime hq).toMulEquiv.uniqueFactorizationMonoid inferInstance
+  Nonempty.some inferInstance
+
 lemma algEquivOfTranscendental_apply_X (hq : 0 < q.natDegree) :
     algEquivOfTranscendental p q coprime hq X = ⟨f, Algebra.subset_adjoin rfl⟩ := by
   sorry
@@ -195,8 +214,8 @@ example : IsIntegrallyClosed K[X] := inferInstance
 
 /- Since K[f] is isomorphic to K[X] and K[X] is integrally closed, K[f] is also integrally closed.
 -/
-theorem isIntegrallyClosed_adjoin_div : IsIntegrallyClosed K[f] := by
-  sorry -- use `IsIntegrallyClosed.of_equiv`
+theorem isIntegrallyClosed_adjoin_div (hq : 0 < q.natDegree) : IsIntegrallyClosed K[f] :=
+  IsIntegrallyClosed.of_equiv (algEquivOfTranscendental p q coprime hq).toRingEquiv
 
 variable (lt : q.natDegree ≤ p.natDegree)
 include lt
@@ -270,17 +289,26 @@ def minpolyDiv' : K[f][X] :=
 open scoped IntermediateField.algebraAdjoinAdjoin
 #synth Algebra K[f] K⟮f⟯
 
+omit coprime lt in
 theorem map_minpolyDiv' : (minpolyDiv' p q).map (algebraMap ..) = minpolyDiv p q := by
-  sorry
+  unfold minpolyDiv'
+  unfold minpolyDiv
+  simp only [Polynomial.map_sub, Polynomial.map_mul, map_C]
+  congr 1
+  · rw [Polynomial.map_map, ←IsScalarTower.algebraMap_eq]
+  · rw [Polynomial.map_map, ←IsScalarTower.algebraMap_eq]
+    simp
+    left
+    rfl
+
 
 /- If we swap the two variables `f` and `X`, then `p - C f * q` becomes `C p - f * C q`. -/
 
-def swap : K[X][X] ≃+* K[X][X] :=
-  .ofRingHom (eval₂RingHom (mapRingHom C) (C X)) (eval₂RingHom (mapRingHom C) (C X))
-    (by ext <;> simp) (by ext <;> simp)
+#check p.map (algebraMap K K[X]) - C X * (q.map (algebraMap K K[X]))
 
-theorem algEquivOfTranscendental_swap_C_sub_C_X (hq : 0 < q.natDegree):
+theorem algEquivOfTranscendental_swap_C_sub_C_X (hq : 0 < q.natDegree) :
     map (algEquivOfTranscendental p q coprime hq) (swap (C p - X * C q)) = minpolyDiv' p q := by
+
   sorry
 
 omit coprime lt in
@@ -356,13 +384,12 @@ theorem irreducible_minpolyDiv' (hq : 0 < q.natDegree) : Irreducible (minpolyDiv
 
 #check MulEquiv.irreducible_iff
 
-theorem irreducible_minpolyDiv : Irreducible (minpolyDiv p q) := by
-  classical
-  rw [← map_minpolyDiv']
-  rw [← IsPrimitive.irreducible_iff_irreducible_map_fraction_map]
-
-
-#check Polynomial.Monic.irreducible_iff_irreducible_map_fraction_map
+theorem irreducible_minpolyDiv (hq : 0 < q.natDegree) : Irreducible (minpolyDiv p q) := by
+  rw [←map_minpolyDiv']
+  have : NormalizedGCDMonoid K[f] := adjoin_f_NormalizedGCDMonoid p q coprime hq
+  rw [←IsPrimitive.irreducible_iff_irreducible_map_fraction_map]
+  exact irreducible_minpolyDiv' p q coprime lt
+  sorry
 
 theorem minpolyDiv_eq_minpoly (hq : 0 < q.natDegree) :
     (minpolyDiv p q).natDegree = (minpoly K⟮f⟯ rfX).natDegree := by
