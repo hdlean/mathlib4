@@ -174,7 +174,7 @@ theorem transcendental_div (hq : 0 < q.natDegree) : Transcendental K f := by
 local notation "K[f]" => Algebra.adjoin K {f}
 
 def algEquivOfTranscendental (hq : 0 < q.natDegree) : K[X] ≃ₐ[K] K[f] := by
-  let f' : K[f] := ⟨f, by apply Algebra.mem_adjoin_of_mem; simp⟩ 
+  let f' : K[f] := ⟨f, by apply Algebra.mem_adjoin_of_mem; simp⟩
   refine AlgEquiv.ofBijective (aeval (R := K) (A := K[f]) f') ?_
   constructor
   · rw [←transcendental_iff_injective]
@@ -207,8 +207,8 @@ theorem isIntegrallyClosed_adjoin_div : IsIntegrallyClosed K[f] := by
 If moreover `p` is monic, then `minpolyDiv p q` is also monic. For convenience, we shall assume
 these conditions henceforth. -/
 
-variable (lt : q.natDegree ≤ p.natDegree) (monic : p.Monic)
-include monic lt
+variable (lt : q.natDegree ≤ p.natDegree)
+include lt
 
 theorem natDegree_minpolyDiv (hq : 0 < q.natDegree) : (minpolyDiv p q).natDegree = p.natDegree := by
   unfold minpolyDiv
@@ -253,7 +253,7 @@ theorem natDegree_minpolyDiv (hq : 0 < q.natDegree) : (minpolyDiv p q).natDegree
           rw [IntermediateField.adjoin_simple_eq_bot_iff]
           simp only [AdjoinSimple.coe_gen] at H
           rw [←H]
-          use p.leadingCoeff / q.leadingCoeff 
+          use p.leadingCoeff / q.leadingCoeff
           simp only [AlgHom.toRingHom_eq_coe, Algebra.toRingHom_ofId, map_div₀]
           rfl
         rw [adjoin_p_dvd_q_eq_bot_iff p q coprime] at this
@@ -288,21 +288,90 @@ def swap : K[X][X] ≃+* K[X][X] :=
   .ofRingHom (eval₂RingHom (mapRingHom C) (C X)) (eval₂RingHom (mapRingHom C) (C X))
     (by ext <;> simp) (by ext <;> simp)
 
-theorem algEquivOfTranscendental_swap_C_sub_C_X :
-    map (algEquivOfTranscendental p q) (swap (C p - C q * X)) = minpolyDiv' p q := by
+theorem algEquivOfTranscendental_swap_C_sub_C_X (hq : 0 < q.natDegree):
+    map (algEquivOfTranscendental p q coprime hq) (swap (C p - X * C q)) = minpolyDiv' p q := by
   sorry
 
-theorem irreducible_mul_X_sub : Irreducible (C p - C q * X) := by
-  sorry
-  -- use `Polynomial.IsPrimitive.irreducible_of_irreducible_map_of_injective` with `φ = toRatFunc`.
-  -- `C p - C q * X` is primitive because `p` and `q` are coprime.
-  -- `(C p - C q * X).map φ` is irreducible by `Polynomial.irreducible_of_degree_eq_one`.
+omit coprime lt in
+lemma aux (hq : q ≠ 0) : (C p - X * C q).natDegree = 1 := by
+  have h₁ : (C p - X * C q) = (C (- q) * X + C p) := by
+    simp
+    ring
+  rw [h₁]
+  apply Polynomial.natDegree_linear
+  exact neg_ne_zero.mpr hq
 
-theorem irreducible_minpolyDiv' : Irreducible (minpolyDiv' p q) := by
-  sorry -- use `MulEquiv.irreducible_iff`
+lemma aux2 (hq : q ≠ 0) : (C p - X * C q).IsPrimitive := by
+  classical
+  rw [isPrimitive_iff_content_eq_one]
+  rw [content_eq_gcd_leadingCoeff_content_eraseLead]
+  have h₃ : (C p - X * C q).leadingCoeff = - q := by
+    rw [leadingCoeff]
+    rw [aux p q hq]
+    simp only [X_mul_C, coeff_sub, coeff_C_succ, coeff_mul_X, coeff_C_zero, zero_sub]
+  rw [h₃]
+  have h₄ : (C p - X * C q).eraseLead = C p := by
+    rw [sub_eq_add_neg]
+    rw [eraseLead_add_of_natDegree_lt_right]
+    · simp
+      rw [neg_mul_eq_neg_mul]
+      rw [← C_neg]
+      rw [eraseLead_C_mul_X]
+    simp
+    rw [natDegree_C_mul_X]
+    exact zero_lt_one
+    exact hq
+  rw [h₄]
+  simp
+  rw [← normalize_gcd]
+  rw [normalize_eq_one]
+  rw [gcd_isUnit_iff]
+  rw [normalize_apply]
+  rw [isCoprime_mul_unit_right_right]
+  rw [IsCoprime.neg_left_iff]
+  rw [isCoprime_comm]
+  exact coprime
+  exact Units.isUnit (normUnit p)
+
+theorem irreducible_mul_X_sub (hq : q ≠ 0): Irreducible (C p - X * C q) := by
+  classical
+  have hnezero : (C p - X * C q) ≠ 0 := by
+    apply ne_zero_of_natDegree_gt (n := 0)
+    rw [aux p q hq]
+    exact zero_lt_one
+  have h₂ : (C p - X * C q).IsPrimitive := by
+    exact aux2 p q coprime lt hq
+  apply @Polynomial.IsPrimitive.irreducible_of_irreducible_map_of_injective K[X] _ K(X) _ _ toRatFunc
+  · exact FaithfulSMul.algebraMap_injective K[X] K(X)
+  · exact h₂
+  · apply Polynomial.irreducible_of_degree_eq_one
+    rw [degree_eq_natDegree]
+    rw [Nat.cast_eq_one]
+    rw [← aux p q hq]
+    rw [natDegree_map_eq_iff]
+    simp
+    left
+    apply ne_zero_of_natDegree_gt (n := 0)
+    rw [mul_comm]
+    rw [aux p q hq]
+    exact zero_lt_one
+    rw [Polynomial.map_ne_zero_iff]
+    exact hnezero
+    exact FaithfulSMul.algebraMap_injective K[X] K(X)
+
+theorem irreducible_minpolyDiv' (hq : 0 < q.natDegree) : Irreducible (minpolyDiv' p q) := by
+  rw [← algEquivOfTranscendental_swap_C_sub_C_X p q coprime lt hq]
+
+
+#check MulEquiv.irreducible_iff
 
 theorem irreducible_minpolyDiv : Irreducible (minpolyDiv p q) := by
-  sorry -- `Polynomial.Monic.irreducible_iff_irreducible_map_fraction_map`
+  classical
+  rw [← map_minpolyDiv']
+  rw [← IsPrimitive.irreducible_iff_irreducible_map_fraction_map]
+
+
+#check Polynomial.Monic.irreducible_iff_irreducible_map_fraction_map
 
 theorem minpolyDiv_eq_minpoly : minpolyDiv p q = minpoly K⟮f⟯ rfX := by
   sorry -- use `minpoly.eq_iff_aeval_eq_zero`
