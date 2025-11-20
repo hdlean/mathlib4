@@ -77,9 +77,29 @@ theorem adjoin_p_dvd_q_eq_bot_iff : K⟮f⟯ = ⊥ ↔ p.natDegree = 0 ∧ q.nat
   rw [IntermediateField.adjoin_simple_eq_bot_iff, IntermediateField.mem_bot]
   constructor
   · rintro ⟨x, hx⟩
-    /- Here, we need to show that if `p / q` is constant and `p` and `q` are coprime, then both
-    `p` qnd `q` are constant. -/
-    sorry
+    by_cases hq : q = 0
+    · rw [hq] at ⊢ hx coprime
+      simp only [map_zero, div_zero, map_eq_zero] at hx
+      exact ⟨natDegree_eq_zero_of_isUnit (isCoprime_zero_right.mp coprime), natDegree_zero⟩
+    by_cases hp : p = 0
+    · rw [hp] at ⊢ hx coprime
+      simp only [map_zero, zero_div, map_eq_zero] at hx
+      refine ⟨natDegree_zero, natDegree_eq_zero_of_isUnit (isCoprime_zero_right.mp coprime.symm)⟩
+    rw [eq_div_iff (by simpa)] at hx
+    rw [←C_toRatFunc, ←map_mul, (FaithfulSMul.algebraMap_injective _ _).eq_iff] at hx
+    constructor <;> apply natDegree_eq_zero_of_isUnit
+    · by_cases hx_zero : x = 0
+      · rw [hx_zero, map_zero, zero_mul, eq_comm] at hx
+        contradiction
+      apply coprime.isUnit_of_dvd
+      use C x⁻¹
+      trans C x⁻¹ * C x * q 
+      · rw [←C_mul, inv_mul_cancel₀ hx_zero, map_one, one_mul]
+      · rw [mul_assoc, hx, mul_comm]
+    · apply coprime.symm.isUnit_of_dvd
+      use C x
+      rw [mul_comm]
+      exact hx.symm
   · rintro ⟨hp, hq⟩
     rw [natDegree_eq_zero] at hp hq
     obtain ⟨a, rfl⟩ := hp
@@ -168,19 +188,13 @@ theorem transcendental_adjoin_div (hq : 0 < q.natDegree) : Algebra.Transcendenta
 
 theorem transcendental_div (hq : 0 < q.natDegree) : Transcendental K f := by
   intro h
-  have h₁ : Algebra.IsAlgebraic K K⟮f⟯ := by
-    apply IntermediateField.isAlgebraic_adjoin_simple
-    exact h.isIntegral
-  have h₂ : Algebra.IsAlgebraic K⟮f⟯ K(X) := by
-    exact isAlgebraic_adjoin_div p q coprime hq
-  have h₃ : Algebra.IsAlgebraic K K(X) := by
-    exact Algebra.IsAlgebraic.trans K K⟮f⟯ K(X)
-  have h₄ : Algebra.Transcendental K K(X) := by
-    exact transcendental_polynomial p q coprime
-  rw [Algebra.transcendental_iff_not_isAlgebraic] at h₄
-  contradiction
+  apply Algebra.transcendental_iff_not_isAlgebraic.mp (transcendental_polynomial K)
+  have h₁ : Algebra.IsAlgebraic K K⟮f⟯ := IntermediateField.isAlgebraic_adjoin_simple h.isIntegral
+  have h₂ : Algebra.IsAlgebraic K⟮f⟯ K(X) := isAlgebraic_adjoin_div p q coprime hq
+  exact Algebra.IsAlgebraic.trans K K⟮f⟯ K(X)
 
 local notation "K[f]" => Algebra.adjoin K {f}
+#check Algebra.adjoin_eq_exists_aeval
 
 def algEquivOfTranscendental (hq : 0 < q.natDegree) : K[X] ≃ₐ[K] K[f] := by
   let f' : K[f] := ⟨f, by apply Algebra.mem_adjoin_of_mem; simp⟩
@@ -198,6 +212,9 @@ def algEquivOfTranscendental (hq : 0 < q.natDegree) : K[X] ≃ₐ[K] K[f] := by
             (Algebra.adjoin K {toRatFunc p / toRatFunc q}) Subtype.property).mp
         fun ⦃a₁ a₂⦄ a ↦ a
   · rw [←AlgHom.range_eq_top, eq_top_iff]
+    intro g _
+
+
     sorry
 
 def adjoin_f_NormalizedGCDMonoid (hq : 0 < q.natDegree) : NormalizedGCDMonoid K[f] :=
@@ -208,9 +225,6 @@ def adjoin_f_NormalizedGCDMonoid (hq : 0 < q.natDegree) : NormalizedGCDMonoid K[
 lemma algEquivOfTranscendental_apply_X (hq : 0 < q.natDegree) :
     algEquivOfTranscendental p q coprime hq X = ⟨f, Algebra.subset_adjoin rfl⟩ := by
   sorry
-
-#synth EuclideanDomain K[X] -- Polynomial.instEuclideanDomain
-example : IsIntegrallyClosed K[X] := inferInstance
 
 /- Since K[f] is isomorphic to K[X] and K[X] is integrally closed, K[f] is also integrally closed.
 -/
@@ -287,7 +301,6 @@ def minpolyDiv' : K[f][X] :=
   p.map (algebraMap ..) - C ⟨f, Algebra.subset_adjoin rfl⟩ * q.map (algebraMap ..)
 
 open scoped IntermediateField.algebraAdjoinAdjoin
-#synth Algebra K[f] K⟮f⟯
 
 omit coprime lt in
 theorem map_minpolyDiv' : (minpolyDiv' p q).map (algebraMap ..) = minpolyDiv p q := by
@@ -380,15 +393,14 @@ theorem irreducible_mul_X_sub (hq : q ≠ 0): Irreducible (C p - X * C q) := by
 
 theorem irreducible_minpolyDiv' (hq : 0 < q.natDegree) : Irreducible (minpolyDiv' p q) := by
   rw [← algEquivOfTranscendental_swap_C_sub_C_X p q coprime lt hq]
+  sorry
 
-
-#check MulEquiv.irreducible_iff
 
 theorem irreducible_minpolyDiv (hq : 0 < q.natDegree) : Irreducible (minpolyDiv p q) := by
   rw [←map_minpolyDiv']
   have : NormalizedGCDMonoid K[f] := adjoin_f_NormalizedGCDMonoid p q coprime hq
   rw [←IsPrimitive.irreducible_iff_irreducible_map_fraction_map]
-  exact irreducible_minpolyDiv' p q coprime lt
+  exact irreducible_minpolyDiv' p q coprime lt hq
   sorry
 
 theorem minpolyDiv_eq_minpoly (hq : 0 < q.natDegree) :
