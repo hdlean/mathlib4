@@ -98,10 +98,7 @@ theorem minpolyDiv_aeval (hq : q ≠ 0) : (minpolyDiv p q).aeval rfX = 0 := by
   simp_rw [aeval_algebraMap_apply, aeval_X_left_apply, div_mul_cancel₀ _ toRatFunc_ne_zero]
   exact sub_self ((algebraMap K[X] K(X)) p)
 
--- Note: this needs f is not a constant, i.e. `max p.natDegree q.natDegree ≠ 0`.
-theorem isAlgebraic_div (hq : 0 < q.natDegree) : IsAlgebraic K⟮f⟯ rfX := by
-  use minpolyDiv p q
-  refine ⟨?_, minpolyDiv_aeval p q (ne_zero_of_natDegree_gt hq)⟩
+theorem minpolyDiv_ne_zero (hq : 0 < q.natDegree) : minpolyDiv p q ≠ 0 := by
   intro H
   refine hq.ne ((adjoin_p_dvd_q_eq_bot_iff p q coprime).mp ?_).2.symm
   rw [IntermediateField.adjoin_simple_eq_bot_iff]
@@ -119,6 +116,10 @@ theorem isAlgebraic_div (hq : 0 < q.natDegree) : IsAlgebraic K⟮f⟯ rfX := by
   simp only [ne_eq, map_eq_zero, leadingCoeff_eq_zero]
   exact ne_zero_of_natDegree_gt hq
 
+theorem isAlgebraic_div (hq : 0 < q.natDegree) : IsAlgebraic K⟮f⟯ rfX :=
+  ⟨minpolyDiv p q, minpolyDiv_ne_zero p q coprime hq,
+    minpolyDiv_aeval p q (ne_zero_of_natDegree_gt hq)⟩
+
 theorem isAlgebraic_adjoin_div (hq : 0 < q.natDegree) : Algebra.IsAlgebraic K⟮f⟯ K(X) := by
   have : Algebra.IsAlgebraic K⟮f⟯ K⟮f⟯⟮rfX⟯ := by
     apply IntermediateField.isAlgebraic_adjoin_simple
@@ -126,14 +127,6 @@ theorem isAlgebraic_adjoin_div (hq : 0 < q.natDegree) : Algebra.IsAlgebraic K⟮
     exact isAlgebraic_div p q coprime hq
   exact ((IntermediateField.equivOfEq (adjoin_X_eq_top p q coprime)).trans
     IntermediateField.topEquiv).isAlgebraic
-
-/- Hints:
-
-* `IntermediateField.isAlgebraic_adjoin` and `isAlgebraic_iff_isIntegral` together with
-  `minpolyDiv_aeval` shows that `K⟮f⟯⟮rfX⟯` is algebraic over `K⟮f⟯`.
-
-* Now use `IntermediateField.equivOfEq` and `IntermediateField.topEquiv` to construct an `AlgHom`
-  between `K⟮f⟯⟮rfX⟯` and K(X), and use `AlgEquiv.isAlgebraic` to conclude. -/
 
 theorem finrank_eq_natDegree_minpoly (hq : 0 < q.natDegree) :
     Module.finrank K⟮f⟯ K(X) = (minpoly K⟮f⟯ rfX).natDegree := by
@@ -144,6 +137,8 @@ theorem finrank_eq_natDegree_minpoly (hq : 0 < q.natDegree) :
   apply IsAlgebraic.isIntegral
   exact isAlgebraic_div p q coprime hq
 
+omit coprime in
+variable (K) in
 theorem transcendental_polynomial : Algebra.Transcendental K K(X) := by
   use rfX
   rintro ⟨g, gnotzero, grfXzero⟩
@@ -151,7 +146,7 @@ theorem transcendental_polynomial : Algebra.Transcendental K K(X) := by
   contradiction
 
 theorem transcendental_adjoin_div (hq : 0 < q.natDegree) : Algebra.Transcendental K K⟮f⟯ := by
-  have htrans := transcendental_polynomial p q  coprime
+  have htrans := transcendental_polynomial K
   have := isAlgebraic_adjoin_div p q coprime hq
   rw [Algebra.transcendental_iff_not_isAlgebraic] at ⊢ htrans
   intro H
@@ -203,18 +198,17 @@ example : IsIntegrallyClosed K[X] := inferInstance
 theorem isIntegrallyClosed_adjoin_div : IsIntegrallyClosed K[f] := by
   sorry -- use `IsIntegrallyClosed.of_equiv`
 
-/- If `p.natDegree > q.natDegree`, then `minpolyDiv p q` has degree equal to the degree of `p`.
-If moreover `p` is monic, then `minpolyDiv p q` is also monic. For convenience, we shall assume
-these conditions henceforth. -/
-
 variable (lt : q.natDegree ≤ p.natDegree)
 include lt
 
-theorem natDegree_minpolyDiv (hq : 0 < q.natDegree) : (minpolyDiv p q).natDegree = p.natDegree := by
+theorem natDegree_minpolyDiv (hq : 0 < q.natDegree) :
+    (minpolyDiv p q).natDegree = max p.natDegree q.natDegree := by
   unfold minpolyDiv
+  rw [max_eq_left lt]
   have h_deg_p : (p.map (algebraMap K K⟮f⟯)).natDegree = p.natDegree := by
     simp only [natDegree_map]
-  have h_deg_q : (C (AdjoinSimple.gen K f) * q.map (algebraMap K K⟮f⟯)).natDegree = q.natDegree := by
+  have h_deg_q : (C (AdjoinSimple.gen K f) * q.map (algebraMap K K⟮f⟯)).natDegree =
+      q.natDegree := by
     rw [natDegree_C_mul]
     · rw [natDegree_map]
     · simp
@@ -263,9 +257,6 @@ theorem natDegree_minpolyDiv (hq : 0 < q.natDegree) : (minpolyDiv p q).natDegree
         rw [natDegree_zero] at hq
         contradiction
 
-
-theorem monic_minpolyDiv : (minpolyDiv p q).Monic := by
-  sorry
 
 /- By `minpoly.eq_iff_aeval_eq_zero`, to show that `minpolyDiv p q` is indeed the minimal
 polynomial of X over K(f), it suffices to show it is irreducible.
@@ -373,17 +364,23 @@ theorem irreducible_minpolyDiv : Irreducible (minpolyDiv p q) := by
 
 #check Polynomial.Monic.irreducible_iff_irreducible_map_fraction_map
 
-theorem minpolyDiv_eq_minpoly : minpolyDiv p q = minpoly K⟮f⟯ rfX := by
-  sorry -- use `minpoly.eq_iff_aeval_eq_zero`
+theorem minpolyDiv_eq_minpoly (hq : 0 < q.natDegree) :
+    (minpolyDiv p q).natDegree = (minpoly K⟮f⟯ rfX).natDegree := by
+  rw [←minpoly.eq_of_irreducible (irreducible_minpolyDiv p q coprime lt), mul_comm, natDegree_C_mul]
+  · apply inv_ne_zero
+    rw [leadingCoeff_ne_zero]
+    exact minpolyDiv_ne_zero p q coprime hq
+  apply minpolyDiv_aeval
+  exact ne_zero_of_natDegree_gt hq
 
 -- Finally we conclude:
-theorem finrank_eq_max_natDegree : Module.finrank K⟮f⟯ K(X) = max p.natDegree q.natDegree :=
-  sorry
+theorem finrank_eq_max_natDegree (hq : 0 < q.natDegree) :
+    Module.finrank K⟮f⟯ K(X) = max p.natDegree q.natDegree := by
+  rw [finrank_eq_natDegree_minpoly p q coprime hq]
+  rw [←minpolyDiv_eq_minpoly p q coprime lt hq]
+  exact natDegree_minpolyDiv p q coprime lt hq
 
 /- Next steps:
-
-* Remove the condition `p.Monic`: dividing `p` by the leading coefficient does not change the
-  degree, and does not affect the intermediate field generated by `f`.
 
 * Remove the condition `q.natDegree < p.natDegree`: if `p.natDegree < q.natDegree`, notice that
   `q / p` generates the same intermediate field as `p / q`. If `p.natDegree = q.natDegree`,
