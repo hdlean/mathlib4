@@ -380,7 +380,7 @@ theorem irreducible_mul_X_sub (hq : q ≠ 0): Irreducible (C p - X * C q) := by
 
 theorem irreducible_minpolyDiv' (hq : 0 < q.natDegree) : Irreducible (minpolyDiv' p q) := by
   rw [← algEquivOfTranscendental_swap_C_sub_C_X p q coprime lt hq]
-
+  sorry
 
 #check MulEquiv.irreducible_iff
 
@@ -388,12 +388,13 @@ theorem irreducible_minpolyDiv (hq : 0 < q.natDegree) : Irreducible (minpolyDiv 
   rw [←map_minpolyDiv']
   have : NormalizedGCDMonoid K[f] := adjoin_f_NormalizedGCDMonoid p q coprime hq
   rw [←IsPrimitive.irreducible_iff_irreducible_map_fraction_map]
-  exact irreducible_minpolyDiv' p q coprime lt
+  exact irreducible_minpolyDiv' p q coprime lt hq
+  apply (irreducible_minpolyDiv' p q coprime lt hq).isPrimitive
   sorry
 
 theorem minpolyDiv_eq_minpoly (hq : 0 < q.natDegree) :
     (minpolyDiv p q).natDegree = (minpoly K⟮f⟯ rfX).natDegree := by
-  rw [←minpoly.eq_of_irreducible (irreducible_minpolyDiv p q coprime lt), mul_comm, natDegree_C_mul]
+  rw [←minpoly.eq_of_irreducible (irreducible_minpolyDiv p q coprime lt hq), mul_comm, natDegree_C_mul]
   · apply inv_ne_zero
     rw [leadingCoeff_ne_zero]
     exact minpolyDiv_ne_zero p q coprime hq
