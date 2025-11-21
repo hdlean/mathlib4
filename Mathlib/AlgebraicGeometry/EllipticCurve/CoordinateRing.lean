@@ -6,7 +6,8 @@ Authors: David Kurniadi Angdinata, Sriram Chinthalagiri Venkata, Junyan Xu
 import Mathlib.AlgebraicGeometry.EllipticCurve.Affine.Point
 import Mathlib.AlgebraicGeometry.EllipticCurve.NormalForms
 import Mathlib.RingTheory.DedekindDomain.IntegralClosure
-
+import Mathlib.RingTheory.Localization.Algebra
+import Mathlib.Algebra.Algebra.Field
 /-!
 # Coordinate ring of an elliptic curve
 
@@ -17,7 +18,7 @@ for a proof outline.
 -/
 
 open Polynomial
-open scoped Polynomial.Bivariate
+open scoped Polynomial.Bivariate NoZeroDivisors
 
 noncomputable section
 
@@ -46,14 +47,36 @@ the Weierstrass polynomial. -/
 abbrev FunctionField' := AdjoinRoot <| E.polynomial.map (algebraMap K[X] K(X))
 -- another implementation could be K(X) ⊗[K[X]] E.CoordinateRing
 
-instance : Fact (Irreducible <| E.polynomial.map (algebraMap K[X] K(X))) := by
-  sorry
+instance : Fact (Irreducible <| E.polynomial.map (algebraMap K[X] K(X))) :=
+  ⟨monic_polynomial.irreducible_iff_irreducible_map_fraction_map.mp irreducible_polynomial⟩
+
   -- use Gauss lemma: Polynomial.Monic.irreducible_iff_irreducible_map_fraction_map
 
 attribute [local instance] Polynomial.algebra in
-instance : Algebra E.CoordinateRing E.FunctionField' :=
-  Ideal.Quotient.algebraQuotientOfLEComap <| by
-    sorry
+instance : Algebra E.CoordinateRing E.FunctionField' := by
+  apply Ideal.Quotient.algebraQuotientOfLEComap
+  apply Ideal.le_comap_of_map_le
+  rw [Ideal.map_span, algebraMap_def, coe_mapRingHom, Set.image_singleton]
+
+attribute [local instance] Polynomial.algebra in
+instance {R K} [CommRing R] [CommRing K] [Algebra R K] [IsFractionRing R K] {p : R[X]} :
+Algebra (AdjoinRoot p)  (AdjoinRoot <| p.map <| algebraMap R K):= by
+
+  apply Ideal.Quotient.algebraQuotientOfLEComap
+  apply Ideal.le_comap_of_map_le
+  rw [Ideal.map_span, algebraMap_def, coe_mapRingHom, Set.image_singleton]
+attribute [local instance] Polynomial.algebra in
+
+-- instance {R K} [CommRing R] [CommRing K] [Algebra R K] [IsFractionRing R K] {p : R[X]} (h : Irreducible p) :
+--     IsFractionRing (AdjoinRoot p) (AdjoinRoot <| p.map <| algebraMap R K) := by
+
+
+
+example {R} [CommRing R] {p : R[X]} {h : Irreducible p} :
+    (nonZeroDivisors R).map ((Ideal.Quotient.mk _).comp C) = nonZeroDivisors (R[X] ⧸ Ideal.span {p})
+    := by
+
+  sorry
 
 instance : IsScalarTower K[X] E.CoordinateRing E.FunctionField' := by
   sorry
@@ -138,9 +161,33 @@ section IsUnit2
 
 variable (h2 : IsUnit (2 : K))
 
+include h2 in
+omit int in
 -- `E.twoTorsionPolynomial` is nonzero (if char K ≠ 2) and separable since E is an elliptic curve.
 theorem separable_twoTorsionPolynomial : E.twoTorsionPolynomial.toPoly.Separable := by
-  sorry
+  have : NeZero (2 : K) := by
+    exact ⟨IsUnit.ne_zero h2⟩
+  have : NeZero (4 : K) := by
+    rw [show (4 : K) = 2 * 2 by norm_num1]
+    exact NeZero.mul
+
+  have h: E.twoTorsionPolynomial.discr ≠ 0 := by apply WeierstrassCurve.twoTorsionPolynomial_discr_ne_zero _ _
+                                                 (expose_names; exact (isElliptic_iff E).mp inst_1)
+                                                 exact h2
+
+  --have :(twoTorsionPolynomial E).toPoly ≠ 0:= by contrapose! h; apply (Cubic.toPoly_eq_zero_iff _).mp at h;rw [h]; rw [Cubic.discr]; ext
+
+  apply (Polynomial.nodup_aroots_iff_of_splits (K:=SplittingField E.twoTorsionPolynomial.toPoly) _ _).mp
+  have := (Cubic.splits_iff_roots_eq_three (F:=K) (K:=SplittingField E.twoTorsionPolynomial.toPoly) (φ:=algebraMap _ _) (P := E.twoTorsionPolynomial) four_ne_zero).mp (Polynomial.IsSplittingField.splits _ _)
+  rcases this with ⟨_ , _ , _ , w⟩
+  convert (Cubic.discr_ne_zero_iff_roots_nodup (P := E.twoTorsionPolynomial) (φ:=algebraMap _ _) (F:=K) (K:=SplittingField E.twoTorsionPolynomial.toPoly) four_ne_zero w).mp _
+  rw [twoTorsionPolynomial]; rw [Cubic.map_roots];assumption;swap; exact Polynomial.IsSplittingField.splits _ _
+  apply Cubic.ne_zero_of_a_ne_zero; exact four_ne_zero
+  --contrapose! h; apply (Cubic.toPoly_eq_zero_iff _).mp at h;rw [h]; rw [← Cubic.of_d_eq_zero' (R:=K)]; rw [Cubic.discr];
+
+
+
+
   /- use `WeierstrassCurve.twoTorsionPolynomial_discr_ne_zero`,
     `Cubic.discr_ne_zero_iff_roots_nodup`,
     `Polynomial.nodup_aroots_iff_of_splits` with `AlgebraicClosure K` -/
@@ -150,13 +197,68 @@ but `E.twoTorsionPolynomial` is separable, hence squarefree, so q ∈ K[X].
 Use `Polynomial.Separable.squarefree` and
 `UniqueFactorizationMonoid.squarefree_iff_nodup_normalizedFactors`.
 Maybe extract a lemma for `UniqueFactorizationMonoid`. -/
+include h2 in
 theorem right_mem_of_isIntegral : q ∈ toRatFunc.range := by
-  sorry
+  -- have : ∃ f g : K[X], q=toRatFunc f / toRatFunc g ∧ IsCoprime f g := by
+  --     rcases IsFractionRing.exists_reduced_fraction (A:= K[X]) (x := q) with ⟨a,b,A,B⟩; use a;use b
+  --     constructor
+  --     swap; exact A.isCoprime; symm; convert B;rw [← IsLocalization.mk'_spec' K(X) a b];rw [mul_div_cancel_left₀];
+  --     subst B
+  --     simp_all only [isUnit_iff_ne_zero, ne_eq, IsFractionRing.mk'_eq_div, FaithfulSMul.algebraMap_eq_zero_iff,
+  --       nonZeroDivisors.coe_ne_zero, not_false_eq_true]
+  -- rcases this with ⟨f, g, h⟩
+  rcases IsFractionRing.exists_reduced_fraction (A:= K[X]) (x := q) with ⟨f,g,h,h'⟩
+  have jr: ∃ h : K[X], f * f * E.twoTorsionPolynomial.toPoly = h * (g * g) := by
+    have := trace_sq_sub_four_mul_norm E p q
+    rcases trace_mem_of_isIntegral E int, norm_mem_of_isIntegral E int with ⟨⟨tr, htr⟩, ⟨nm, hnm⟩⟩
+    use tr ^ 2 - 4 * nm
+    apply_fun toRatFunc
+    swap
+    · exact IsFractionRing.injective ..
+    simp
+    rw [htr, hnm]
+    rw [map_ofNat]
+    rw [this, ← h']
+    rw [← IsLocalization.mk'_spec' K(X) f g]
+    --simp
+    ring1
 
+
+
+  have hu : (g : K[X]) * g ∣ E.twoTorsionPolynomial.toPoly:= by
+    rcases jr with ⟨l, hi⟩
+    apply IsCoprime.dvd_of_dvd_mul_left (y := f * f) <| by
+      apply IsCoprime.mul_right <;> exact h.isCoprime.symm.mul_left h.isCoprime.symm
+    use l; linear_combination hi
+
+
+  have he : IsUnit (g : K[X]) := by
+    apply Polynomial.Separable.squarefree (E.separable_twoTorsionPolynomial h2) _ hu
+  rw [← h']; use f * he.unit⁻¹
+  aesop
+
+
+
+#check map_div'
+
+/- Since q ∈ K[X], `norm_meh2.unitm_of_isIntegral` shows that p satisfies a monic quadratic equation
+with coefficients in K[X], so p is integral over K[X] and therefore in K[X]. -/
+
+include h2 in
 theorem left_mem_of_isIntegral : p ∈ toRatFunc.range := by
-  sorry /- apply `left_mem_of_right_mem_of_norm_mem` to
-    `norm_mem_of_isIntegral` and `right_mem_of_isIntegral(_of_char_two)`. -/
-
+  have ho: q ∈ toRatFunc.range:= by apply right_mem_of_isIntegral E int h2
+  rcases ho with ⟨f , hf⟩
+  have hl: E.trace p q ∈ toRatFunc.range := by exact trace_mem_of_isIntegral E int
+  rcases hl with ⟨g,hg⟩
+  have : 2 * p =   (E.trace p q + toRatFunc (C E.a₁ * X + C E.a₃) * q):= by rw[trace]; field_simp;ring
+  have jl: 2 * p ∈ toRatFunc.range := by rw [this]; use g + (C E.a₁ * X + C E.a₃) * f;simp;rw[hg,hf]
+  rcases jl with ⟨p',hp'⟩
+  use C (2⁻¹ : K) * p'
+  rw [map_mul]; rw [hp', ← mul_assoc]
+  rw [← map_ofNat toRatFunc, ← map_ofNat C, ← map_mul, ← map_mul]
+  rw [inv_mul_cancel₀]
+  simp
+  exact h2.ne_zero
 end IsUnit2
 
 section Char2
