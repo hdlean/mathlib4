@@ -29,7 +29,7 @@ lemma Polynomial.toRatFunc_X_ne_zero {R} [CommRing R] [Nontrivial R] : (X : R[X]
 
 namespace WeierstrassCurve
 
-def CoordinateRing.variableChange {R} [CommRing R] (W : WeierstrassCurve.Affine R)
+def Affine.CoordinateRing.variableChange {R} [CommRing R] (W : WeierstrassCurve.Affine R)
     (e : VariableChange R) : W.CoordinateRing ≃ₐ[R] (e • W).CoordinateRing := by
   sorry /- The isomorphism is given by `(X, Y) ↔ (u²X + r, u³Y + u²sX + t)`. -/
 
@@ -185,23 +185,23 @@ theorem mem_of_isIntegral_of_isCharTwoJNeZeroNF [E.IsCharTwoJNeZeroNF] :
   have : IsIntegral K[X] (p * X.toRatFunc) := by
     sorry -- Since `E.norm p q ∈ K[X]`, we have `X² * E.norm p q ∈ K[X]` as well.
     -- Expand the definition of norm, and apply `isIntegral_of_sq_add_mem_range`
-  have ⟨p', hp⟩ : p * X.toRatFunc ∈ toRatFunc.range := by
+  have ⟨pX, hp⟩ : p * X.toRatFunc ∈ toRatFunc.range := by
     sorry -- since K[X] is integrally closed
-  have ⟨q', hq⟩ := hq
+  have ⟨qX, hq⟩ := hq
   have ⟨N, hN⟩ := E.norm_mem_of_isIntegral int
-  have hN : p' ^ 2 + p' * q' * X + q' ^ 2 * (X ^ 3 + C E.a₂ * X ^ 2 + C E.a₆) = X ^ 2 * N := by
+  have hN : pX ^ 2 + pX * qX * X + qX ^ 2 * (X ^ 3 + C E.a₂ * X ^ 2 + C E.a₆) = X ^ 2 * N := by
     sorry -- X² times the definition of norm
-  have : p'.coeff 0 ^ 2 + q'.coeff 0 ^ 2 * E.a₆ = 0 := by
-    sorry -- compare the constant term of the two sides of hN
-  have : p'.coeff 0 * q'.coeff 0 = 0 := by
-    sorry -- compare the X coefficient of the two sides of hN
-    -- We are in characteristic 2, so p² has no linear term for any polynomial p.
-  have hp0 : p'.coeff 0 = 0 := sorry
-  have hq0 : q'.coeff 0 = 0 := sorry
-  refine ⟨⟨p'.divX, ?_⟩, q'.divX, ?_⟩ <;> refine mul_right_cancel₀ toRatFunc_X_ne_zero ?_ <;>
-    simp only [← map_mul, ← hp, ← hq]
-  · conv_rhs => rw [← p'.divX_mul_X_add, hp0, C_0, add_zero]
-  · conv_rhs => rw [← q'.divX_mul_X_add, hq0, C_0, add_zero]
+  have : pX.coeff 0 ^ 2 + qX.coeff 0 ^ 2 * E.a₆ = 0 := by
+    have := congr_arg (·.coeff 0) hN -- compare the constant term of the two sides of hN
+    sorry
+  have : pX.coeff 0 * qX.coeff 0 = 0 := by
+    have := congr_arg (·.coeff 1) hN -- compare the X coefficient of the two sides of hN
+    sorry -- We are in characteristic 2, so f² has no linear term for any polynomial f.
+  have hp0 : pX.coeff 0 = 0 := sorry
+  have hq0 : qX.coeff 0 = 0 := sorry
+  refine ⟨⟨pX.divX, ?_⟩, qX.divX, ?_⟩ <;> refine mul_right_cancel₀ toRatFunc_X_ne_zero ?_
+  · conv_rhs => rw [← hp, ← pX.divX_mul_X_add, hp0, C_0, add_zero, map_mul]
+  · conv_rhs => rw [← hq, ← qX.divX_mul_X_add, hq0, C_0, add_zero, map_mul]
 
 end Char2
 
