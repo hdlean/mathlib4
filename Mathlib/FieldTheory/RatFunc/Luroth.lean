@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2025 Justus Springer and Junyan Xu. All rights reserved.
+Copyright (c) 2025 Miriam Philipp, Justus Springer and Junyan Xu. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Justus Springer, Junyan Xu
+Authors: Miriam Philipp, Justus Springer, Junyan Xu
 -/
 import Mathlib.FieldTheory.IntermediateField.Adjoin.Algebra
 import Mathlib.FieldTheory.IntermediateField.Adjoin.Basic
@@ -93,7 +93,7 @@ theorem adjoin_p_dvd_q_eq_bot_iff : K⟮f⟯ = ⊥ ↔ p.natDegree = 0 ∧ q.nat
         contradiction
       apply coprime.isUnit_of_dvd
       use C x⁻¹
-      trans C x⁻¹ * C x * q 
+      trans C x⁻¹ * C x * q
       · rw [←C_mul, inv_mul_cancel₀ hx_zero, map_one, one_mul]
       · rw [mul_assoc, hx, mul_comm]
     · apply coprime.symm.isUnit_of_dvd
@@ -229,7 +229,7 @@ lemma algEquivOfTranscendental_apply_X (hq : 0 < q.natDegree) :
 /- Since K[f] is isomorphic to K[X] and K[X] is integrally closed, K[f] is also integrally closed.
 -/
 theorem isIntegrallyClosed_adjoin_div (hq : 0 < q.natDegree) : IsIntegrallyClosed K[f] :=
-  IsIntegrallyClosed.of_equiv (algEquivOfTranscendental p q coprime hq).toRingEquiv
+  .of_equiv (algEquivOfTranscendental p q coprime hq).toRingEquiv
 
 variable (lt : q.natDegree ≤ p.natDegree)
 include lt
