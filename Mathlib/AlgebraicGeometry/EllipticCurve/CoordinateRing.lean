@@ -176,8 +176,8 @@ theorem trace_sq_sub_four_mul_norm :
     E.trace p q ^ 2 - 4 * E.norm p q = q ^ 2 * E.twoTorsionPolynomial.toPoly.toRatFunc := by
   sorry
 
-theorem isIntegral_of_sq_add_mem_range {R A} [CommRing R] [Ring A] [Algebra R A] (r₀ r₁ : R) (a : A)
-    (h : a ^ 2 + algebraMap R A r₁ * a + algebraMap R A r₀ ∈ (algebraMap R A).range) :
+theorem isIntegral_of_sq_sub_mem_range {R A} [CommRing R] [Ring A] [Algebra R A] {r₀ r₁ : R} {a : A}
+    (h : a ^ 2 - algebraMap R A r₁ * a - algebraMap R A r₀ ∈ (algebraMap R A).range) :
     IsIntegral R a := by
   sorry
 
@@ -195,10 +195,16 @@ theorem norm_mem_of_isIntegral {p q : R(X)} (int : IsIntegral R[X] <| E.comb p q
     E.norm p q ∈ toRatFunc.range := by
   sorry -- ditto
 
-variable {K : Type*} [Field K] (E : Affine K) [E.IsElliptic] {p q : K(X)}
-  (int : IsIntegral K[X] <| E.comb p q)
+variable {K : Type*} [Field K] (E : Affine K) {p q : K(X)} (int : IsIntegral K[X] <| E.comb p q)
 
-include int
+theorem left_mem_of_right_mem (int : IsIntegral K[X] <| E.comb p q) (hq : q ∈ toRatFunc.range) :
+    p ∈ toRatFunc.range := by
+  have ⟨f, hf⟩ := hq
+  have := E.norm_mem_of_isIntegral int
+  rw [← hf, norm, mul_assoc, mul_comm, ← map_pow, ← map_mul, ← map_mul] at this
+  exact (isIntegrallyClosed_iff K(X)).mp inferInstance (isIntegral_of_sq_sub_mem_range this)
+
+variable [E.IsElliptic]
 
 section IsUnit2
 
@@ -207,68 +213,44 @@ variable (h2 : IsUnit (2 : K))
 include h2
 
 theorem separable_twoTorsionPolynomial : E.twoTorsionPolynomial.toPoly.Separable := by
-  have : NeZero (2 : K) := by
-    exact ⟨IsUnit.ne_zero h2⟩
+  have : NeZero (2 : K) := ⟨h2.ne_zero⟩
   have : NeZero (4 : K) := by
     rw [show (4 : K) = 2 * 2 by norm_num1]
     exact NeZero.mul
-  have h: E.twoTorsionPolynomial.discr ≠ 0 := by
-    apply WeierstrassCurve.twoTorsionPolynomial_discr_ne_zero _ _
-    (expose_names; apply (isElliptic_iff E).mp inst_1)
-    exact h2
-  apply (Polynomial.nodup_aroots_iff_of_splits (K := SplittingField E.twoTorsionPolynomial.toPoly) _ _).mp
-  have := (Cubic.splits_iff_roots_eq_three (F := K) (K := SplittingField E.twoTorsionPolynomial.toPoly) (φ:=algebraMap _ _) (P := E.twoTorsionPolynomial) four_ne_zero).mp (Polynomial.IsSplittingField.splits _ _)
-  rcases this with ⟨_ , _ , _ , w⟩
-  convert (Cubic.discr_ne_zero_iff_roots_nodup (P := E.twoTorsionPolynomial) (φ:=algebraMap _ _) (F:=K) (K:=SplittingField E.twoTorsionPolynomial.toPoly) four_ne_zero w).mp _
-  rw [twoTorsionPolynomial]
-  rw [Cubic.map_roots]
-  assumption
-  swap
-  exact Polynomial.IsSplittingField.splits _ _
-  apply Cubic.ne_zero_of_a_ne_zero
-  exact four_ne_zero
+  have h : E.twoTorsionPolynomial.discr ≠ 0 := twoTorsionPolynomial_discr_ne_zero _ h2 E.isUnit_Δ
+  let F := SplittingField E.twoTorsionPolynomial.toPoly
+  apply (nodup_aroots_iff_of_splits (K := F) _ _).mp
+  · rw [aroots, ← Cubic.map_toPoly]
+    -- TODO: simplify the proof after #31912
+    have ⟨_ , _ , _ , w⟩ := (E.twoTorsionPolynomial.splits_iff_roots_eq_three (φ := algebraMap K F)
+      four_ne_zero).mp (IsSplittingField.splits _ _)
+    exact (Cubic.discr_ne_zero_iff_roots_nodup four_ne_zero w).mp h
+  · exact Cubic.ne_zero_of_a_ne_zero four_ne_zero
+  exact IsSplittingField.splits _ _
 
+include int in
 /- Maybe extract a lemma for `UniqueFactorizationMonoid`. -/
 theorem right_mem_of_isIntegral : q ∈ toRatFunc.range := by
-  rcases IsFractionRing.exists_reduced_fraction (A:= K[X]) (x := q) with ⟨f,g,h,h'⟩
+  rcases IsFractionRing.exists_reduced_fraction (A := K[X]) (x := q) with ⟨f, g, h, h'⟩
   have jr: ∃ h : K[X], f * f * E.twoTorsionPolynomial.toPoly = h * (g * g) := by
     have := trace_sq_sub_four_mul_norm E p q
     rcases trace_mem_of_isIntegral E int, norm_mem_of_isIntegral E int with ⟨⟨tr, htr⟩, ⟨nm, hnm⟩⟩
     use tr ^ 2 - 4 * nm
-    apply_fun toRatFunc
-    swap
-    · exact IsFractionRing.injective ..
+    apply_fun toRatFunc using IsFractionRing.injective ..
     simp
     rw [htr, hnm]
     rw [map_ofNat]
     rw [this, ← h']
     rw [← IsLocalization.mk'_spec' K(X) f g]
-    --simp
     ring1
-  have hu : (g : K[X]) * g ∣ E.twoTorsionPolynomial.toPoly:= by
+  have hu : (g : K[X]) * g ∣ E.twoTorsionPolynomial.toPoly := by
     rcases jr with ⟨l, hi⟩
     apply IsCoprime.dvd_of_dvd_mul_left (y := f * f) <| by
       apply IsCoprime.mul_right <;> exact h.isCoprime.symm.mul_left h.isCoprime.symm
     use l; linear_combination hi
-  have he : IsUnit (g : K[X]) := by
-    apply Polynomial.Separable.squarefree (E.separable_twoTorsionPolynomial int h2) _ hu
+  have he : IsUnit (g : K[X]) := (E.separable_twoTorsionPolynomial h2).squarefree  _ hu
   rw [← h']; use f * he.unit⁻¹
   aesop
-
-theorem left_mem_of_isIntegral : p ∈ toRatFunc.range := by
-  have ho: q ∈ toRatFunc.range:= by apply right_mem_of_isIntegral E int h2
-  rcases ho with ⟨f , hf⟩
-  have hl: E.trace p q ∈ toRatFunc.range := by exact trace_mem_of_isIntegral E int
-  rcases hl with ⟨g,hg⟩
-  have : 2 * p =   (E.trace p q + toRatFunc (C E.a₁ * X + C E.a₃) * q):= by rw[trace]; field_simp;ring
-  have jl: 2 * p ∈ toRatFunc.range := by rw [this]; use g + (C E.a₁ * X + C E.a₃) * f;simp;rw[hg,hf]
-  rcases jl with ⟨p',hp'⟩
-  use C (2⁻¹ : K) * p'
-  rw [map_mul]; rw [hp', ← mul_assoc]
-  rw [← map_ofNat toRatFunc, ← map_ofNat C, ← map_mul, ← map_mul]
-  rw [inv_mul_cancel₀]
-  simp
-  exact h2.ne_zero
 
 end IsUnit2
 
@@ -282,6 +264,8 @@ theorem a₁_or_a₃_ne_zero_of_char_two : E.a₁ ≠ 0 ∨ E.a₃ ≠ 0 := by
 theorem trace_eq_of_char_two : E.trace p q = q * (C E.a₁ * X + C E.a₃).toRatFunc := by
   sorry
 
+include int
+
 /- If a₁ = 0, then a₃ ≠ 0 by `a₁_or_a₃_ne_zero_of_char_two`, and Tr(p+qY) = a₃q ∈ K[X],
 so q ∈ K[X]. -/
 theorem right_mem_of_isIntegral_of_a₁_ne_zero (h : E.a₁ = 0) : q ∈ toRatFunc.range := by
@@ -291,8 +275,8 @@ theorem right_mem_of_isIntegral_of_a₁_ne_zero (h : E.a₁ = 0) : q ∈ toRatFu
 a₆ = Δ ≠ 0 by `Δ_of_isCharTwoJNeZeroNF_of_char_two`.
 We can come back to prove this assuming only a₁ ≠ 0 after we've shown the coordinate ring is
 integrally closed. -/
-theorem mem_of_isIntegral_of_isCharTwoJNeZeroNF [E.IsCharTwoJNeZeroNF] :
-    p ∈ toRatFunc.range ∧ q ∈ toRatFunc.range := by
+theorem right_mem_of_isIntegral_of_isCharTwoJNeZeroNF [E.IsCharTwoJNeZeroNF] :
+    q ∈ toRatFunc.range := by
   have hq : q * X.toRatFunc ∈ toRatFunc.range := by
     sorry -- we have Tr(p+qY) = qX in this case, so just use `trace_eq_of_char_two`
   have : IsIntegral K[X] (p * X.toRatFunc) := by
@@ -312,19 +296,33 @@ theorem mem_of_isIntegral_of_isCharTwoJNeZeroNF [E.IsCharTwoJNeZeroNF] :
     sorry -- We are in characteristic 2, so f² has no linear term for any polynomial f.
   have hp0 : pX.coeff 0 = 0 := sorry
   have hq0 : qX.coeff 0 = 0 := sorry
-  refine ⟨⟨pX.divX, ?_⟩, qX.divX, ?_⟩ <;> refine mul_right_cancel₀ toRatFunc_X_ne_zero ?_
-  · conv_rhs => rw [← hp, ← pX.divX_mul_X_add, hp0, C_0, add_zero, map_mul]
-  · conv_rhs => rw [← hq, ← qX.divX_mul_X_add, hq0, C_0, add_zero, map_mul]
+  refine ⟨qX.divX, mul_right_cancel₀ toRatFunc_X_ne_zero ?_⟩
+  conv_rhs => rw [← hq, ← qX.divX_mul_X_add, hq0, C_0, add_zero, map_mul]
 
 end Char2
 
 variable (h : IsUnit (2 : K) ∨ E.a₁ = 0 ∨ E.IsCharTwoJNeZeroNF)
 include h
 
+include int in
 theorem comb_mem_of_isIntegral : E.comb p q ∈ (algebraMap E.CoordinateRing _).range := by
-  sorry
-
-omit int
+  have hq : q ∈ toRatFunc.range := by
+    by_cases h2 : IsUnit (2 : K)
+    · exact E.right_mem_of_isIntegral int h2
+    have h₂ := h2
+    rw [isUnit_iff_ne_zero, Ne, not_not] at h2
+    have := ringChar.of_eq (CharP.ringChar_of_prime_eq_zero Nat.prime_two h2)
+    obtain h | h := h.resolve_left h₂
+    · exact E.right_mem_of_isIntegral_of_a₁_ne_zero int h
+    · exact E.right_mem_of_isIntegral_of_isCharTwoJNeZeroNF int
+  obtain ⟨p, rfl⟩ := E.left_mem_of_right_mem int hq
+  obtain ⟨q, rfl⟩ := hq
+  refine ⟨p • 1 + q • .mk _ X, ?_⟩
+  simp only [Algebra.smul_def, mul_one, map_add, map_mul, comb]
+  congr!
+  · exact congr_arg (⟦·⟧) (map_C ..)
+  · exact congr_arg (⟦·⟧) (map_C ..)
+  · exact congr_arg (⟦·⟧) (map_X _)
 
 namespace CoordinateRing
 
@@ -332,7 +330,7 @@ namespace CoordinateRing
 1-variable polynomial ring in the function field. -/
 private theorem isIntegralClosure :
     IsIntegralClosure E.CoordinateRing K[X] E.FunctionField' := by
-  refine ⟨FaithfulSMul.algebraMap_injective .., fun {f} ↦ ⟨fun int ↦ ?_, ?_⟩⟩
+  refine ⟨IsFractionRing.injective .., fun {f} ↦ ⟨fun int ↦ ?_, ?_⟩⟩
   · obtain ⟨p, q, rfl⟩ := f.exists_comb_eq; exact E.comb_mem_of_isIntegral int h
   · rintro ⟨f, rfl⟩; exact isIntegral_trans _ (isIntegral_algebraMap ..)
 
