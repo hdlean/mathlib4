@@ -117,26 +117,16 @@ def prime_polynomial' : Prime <| E.polynomial.map <| algebraMap R[X] R(X) :=
 instance : Fact <| Irreducible <| E.polynomial.map <| algebraMap R[X] R(X) :=
   ⟨E.irreducible_polynomial'⟩
 
-instance : Algebra E.CoordinateRing E.FunctionField' :=
-  inferInstance
-
-instance : IsScalarTower R[X] E.CoordinateRing E.FunctionField' :=
-  inferInstance
-
-instance : Module.Free R[X] E.CoordinateRing :=
-  .of_basis <| CoordinateRing.basis E
-
-instance : Module.Finite R[X] E.CoordinateRing :=
-  monic_polynomial.finite_adjoinRoot
-
-instance : FiniteDimensional R(X) E.FunctionField' :=
-  (monic_polynomial.map _).finite_adjoinRoot
+example : Algebra E.CoordinateRing E.FunctionField' := inferInstance
+example : IsScalarTower R[X] E.CoordinateRing E.FunctionField' := inferInstance
+instance : Module.Free R[X] E.CoordinateRing := .of_basis <| CoordinateRing.basis E
+instance : Module.Finite R[X] E.CoordinateRing := monic_polynomial.finite_adjoinRoot
+instance : FiniteDimensional R(X) E.FunctionField' := (monic_polynomial.map _).finite_adjoinRoot
 
 instance : IsFractionRing E.CoordinateRing E.FunctionField' :=
   AdjoinRoot.isFractionRing irreducible_polynomial.prime <| E.degree_polynomial ▸ two_ne_zero
 
-instance : FaithfulSMul E.CoordinateRing E.FunctionField' :=
-  inferInstance
+example : FaithfulSMul E.CoordinateRing E.FunctionField' := inferInstance
 
 -- may be unnecessary for the final goal
 theorem isIntegral_coordinateRing_iff {f : E.FunctionField'} :
@@ -179,7 +169,9 @@ theorem trace_sq_sub_four_mul_norm :
 theorem isIntegral_of_sq_sub_mem_range {R A} [CommRing R] [Ring A] [Algebra R A] {r₀ r₁ : R} {a : A}
     (h : a ^ 2 - algebraMap R A r₁ * a - algebraMap R A r₀ ∈ (algebraMap R A).range) :
     IsIntegral R a := by
-  sorry
+  have ⟨r, hr⟩ := h
+  rw [eq_comm, ← sub_eq_zero] at hr
+  exact ⟨X ^ 2 - C r₁ * X - C (r₀ + r), by monicity <;> decide, by simpa [← sub_sub]⟩
 
 /- If q and N(p+qY) lie in R[X], then p satisfies a monic quadratic equation
 with coefficients in R[X], so p is integral over R[X] and therefore in R[X]. -/
@@ -222,7 +214,7 @@ theorem separable_twoTorsionPolynomial : E.twoTorsionPolynomial.toPoly.Separable
   apply (nodup_aroots_iff_of_splits (K := F) _ _).mp
   · rw [aroots, ← Cubic.map_toPoly]
     -- TODO: simplify the proof after #31912
-    have ⟨_ , _ , _ , w⟩ := (E.twoTorsionPolynomial.splits_iff_roots_eq_three (φ := algebraMap K F)
+    have ⟨_, _, _, w⟩ := (E.twoTorsionPolynomial.splits_iff_roots_eq_three (φ := algebraMap K F)
       four_ne_zero).mp (IsSplittingField.splits _ _)
     exact (Cubic.discr_ne_zero_iff_roots_nodup four_ne_zero w).mp h
   · exact Cubic.ne_zero_of_a_ne_zero four_ne_zero
@@ -232,25 +224,21 @@ include int in
 /- Maybe extract a lemma for `UniqueFactorizationMonoid`. -/
 theorem right_mem_of_isIntegral : q ∈ toRatFunc.range := by
   rcases IsFractionRing.exists_reduced_fraction (A := K[X]) (x := q) with ⟨f, g, h, h'⟩
-  have jr: ∃ h : K[X], f * f * E.twoTorsionPolynomial.toPoly = h * (g * g) := by
+  have ⟨l, hi⟩ : ∃ h : K[X], f * f * E.twoTorsionPolynomial.toPoly = h * (g * g) := by
     have := trace_sq_sub_four_mul_norm E p q
     rcases trace_mem_of_isIntegral E int, norm_mem_of_isIntegral E int with ⟨⟨tr, htr⟩, ⟨nm, hnm⟩⟩
     use tr ^ 2 - 4 * nm
     apply_fun toRatFunc using IsFractionRing.injective ..
-    simp
-    rw [htr, hnm]
-    rw [map_ofNat]
-    rw [this, ← h']
-    rw [← IsLocalization.mk'_spec' K(X) f g]
+    simp only [map_mul, map_sub, map_pow]
+    rw [htr, hnm, map_ofNat, this, ← h', ← IsLocalization.mk'_spec' K(X) f g]
     ring1
   have hu : (g : K[X]) * g ∣ E.twoTorsionPolynomial.toPoly := by
-    rcases jr with ⟨l, hi⟩
     apply IsCoprime.dvd_of_dvd_mul_left (y := f * f) <| by
       apply IsCoprime.mul_right <;> exact h.isCoprime.symm.mul_left h.isCoprime.symm
     use l; linear_combination hi
-  have he : IsUnit (g : K[X]) := (E.separable_twoTorsionPolynomial h2).squarefree  _ hu
-  rw [← h']; use f * he.unit⁻¹
-  aesop
+  have he : IsUnit (g : K[X]) := (E.separable_twoTorsionPolynomial h2).squarefree _ hu
+  use f * he.unit⁻¹
+  simp [← h', div_eq_mul_inv]
 
 end IsUnit2
 
@@ -355,11 +343,8 @@ instance : IsIntegrallyClosed E.CoordinateRing := by
   · exact (isIntegrallyClosed_iff_isIntegrallyClosedIn _).mpr
       (CoordinateRing.isIntegrallyClosedIn E <| .inl <| Ne.isUnit h2)
 
-instance : IsIntegralClosure E.CoordinateRing K[X] E.FunctionField' :=
-  inferInstance
-
-instance : IsIntegrallyClosedIn E.CoordinateRing E.FunctionField' :=
-  inferInstance
+example : IsIntegralClosure E.CoordinateRing K[X] E.FunctionField' := inferInstance
+example : IsIntegrallyClosedIn E.CoordinateRing E.FunctionField' := inferInstance
 
 instance : Algebra.IsSeparable K(X) E.FunctionField' := by
   sorry
