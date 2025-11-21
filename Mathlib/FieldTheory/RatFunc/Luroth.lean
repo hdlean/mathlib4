@@ -50,6 +50,10 @@ abbrev toRatFunc : K[X] →+* K(X) := algebraMap ..
 @[simp]
 theorem C_toRatFunc (a : K) : (C a).toRatFunc = algebraMap K K(X) a := rfl
 
+theorem FractionRing.exists_isCoprime_eq_div (f : K(X)) :
+    ∃ p q : K[X], IsCoprime p q ∧ f = p.toRatFunc / q.toRatFunc := by
+  sorry
+
 set_option quotPrecheck false
 
 section swap
@@ -111,16 +115,21 @@ theorem adjoin_p_dvd_q_eq_bot_iff : K⟮f⟯ = ⊥ ↔ p.natDegree = 0 ∧ q.nat
 local notation "rfX" => toRatFunc (K := K) X
 
 /- First show that `X` generates K(X) over K(f). -/
+omit coprime in
 theorem adjoin_f_adjoin_X_eq_top : K⟮f⟯⟮rfX⟯ = ⊤ := by
   rw [←IntermediateField.restrictScalars_eq_top_iff (K := K),
     IntermediateField.adjoin_simple_adjoin_simple, eq_top_iff]
   trans K⟮rfX⟯
-  · sorry
+  · intro g _
+    rw [IntermediateField.mem_adjoin_simple_iff]
+    obtain ⟨r, s, _, hrs⟩ := FractionRing.exists_isCoprime_eq_div g
+    refine ⟨r, s, ?_⟩
+    convert hrs using 2 <;> rw [aeval_algebraMap_apply] <;> simp
   · apply IntermediateField.adjoin.mono
     grind
 
 def adjoin_f_adjoin_X_equiv : K⟮f⟯⟮rfX⟯ ≃ₐ[K⟮f⟯] K(X) :=
-  ((IntermediateField.equivOfEq (adjoin_f_adjoin_X_eq_top p q coprime)).trans
+  ((IntermediateField.equivOfEq (adjoin_f_adjoin_X_eq_top p q)).trans
     IntermediateField.topEquiv)
 
 /- Since `X` generates K(X) over K(f), the degree of the field extension K(X)/K(f) is equal to
@@ -171,11 +180,11 @@ theorem isAlgebraic_adjoin_f_adjoin_X (hq : 0 < q.natDegree) :
 
 instance isAlgebraic_adjoin_div (hq : 0 < q.natDegree) : Algebra.IsAlgebraic K⟮f⟯ K(X) := by
   have : Algebra.IsAlgebraic K⟮f⟯ K⟮f⟯⟮rfX⟯ := isAlgebraic_adjoin_f_adjoin_X p q coprime hq
-  exact (adjoin_f_adjoin_X_equiv p q coprime).isAlgebraic
+  exact (adjoin_f_adjoin_X_equiv p q).isAlgebraic
 
 theorem finrank_eq_natDegree_minpoly (hq : 0 < q.natDegree) :
     Module.finrank K⟮f⟯ K(X) = (minpoly K⟮f⟯ rfX).natDegree := by
-  rw [←(adjoin_f_adjoin_X_equiv p q coprime).toLinearEquiv.finrank_eq]
+  rw [←(adjoin_f_adjoin_X_equiv p q).toLinearEquiv.finrank_eq]
   apply IntermediateField.adjoin.finrank
   apply IsAlgebraic.isIntegral
   exact isAlgebraic_div p q coprime hq
@@ -205,23 +214,21 @@ theorem transcendental_div (hq : 0 < q.natDegree) : Transcendental K f := by
 local notation "K[f]" => Algebra.adjoin K {f}
 
 def algEquivOfTranscendental (hq : 0 < q.natDegree) : K[X] ≃ₐ[K] K[f] := by
-  let f' : K[f] := ⟨f, by apply Algebra.mem_adjoin_of_mem; simp⟩
-  refine AlgEquiv.ofBijective (aeval (R := K) (A := K[f]) f') ?_
+  refine AlgEquiv.ofBijective (aeval ⟨f, Algebra.mem_adjoin_of_mem (by simp)⟩) ?_
   constructor
-  · rw [←transcendental_iff_injective]
-    have h₁ := transcendental_div p q coprime hq
-    rw [Transcendental] at ⊢ h₁
-    have := @isAlgebraic_algHom_iff K K[f] _ _ _ K(X) _ _ K[f].val ?_ f'
-    · simp at this
-      rw [←this]
-      exact h₁
-    · exact
-      (AlgHom.injective_codRestrict (Algebra.adjoin K {toRatFunc p / toRatFunc q}).val
-            (Algebra.adjoin K {toRatFunc p / toRatFunc q}) Subtype.property).mp
-        fun ⦃a₁ a₂⦄ a ↦ a
+  · rw [←transcendental_iff_injective, Transcendental, ←isAlgebraic_algHom_iff K[f].val (by simp)]
+    exact transcendental_div p q coprime hq
   · rw [←AlgHom.range_eq_top, eq_top_iff]
-    intro g _
-    sorry
+    rintro ⟨g, g_mem⟩ _
+    obtain ⟨r, hr⟩ := Algebra.adjoin_mem_exists_aeval _ _ g_mem
+    use r
+    ext
+    simp only [AlgHom.toRingHom_eq_coe, RingHom.coe_coe]
+    rw [←hr, coe_aeval_mk_apply]
+
+theorem algEquivOfTranscendental_apply (hq : 0 < q.natDegree) (g : K[X]) :
+    algEquivOfTranscendental p q coprime hq g =
+    aeval ⟨f, Algebra.mem_adjoin_of_mem (by simp)⟩ g := rfl
 
 def adjoin_f_NormalizedGCDMonoid (hq : 0 < q.natDegree) : NormalizedGCDMonoid K[f] :=
   have : UniqueFactorizationMonoid K[f]
@@ -230,7 +237,7 @@ def adjoin_f_NormalizedGCDMonoid (hq : 0 < q.natDegree) : NormalizedGCDMonoid K[
 
 lemma algEquivOfTranscendental_apply_X (hq : 0 < q.natDegree) :
     algEquivOfTranscendental p q coprime hq X = ⟨f, Algebra.subset_adjoin rfl⟩ := by
-  sorry
+  rw [algEquivOfTranscendental_apply, Subtype.ext_iff, coe_aeval_mk_apply, aeval_X]
 
 /- Since K[f] is isomorphic to K[X] and K[X] is integrally closed, K[f] is also integrally closed.
 -/
@@ -436,9 +443,6 @@ open Polynomial
 
 local notation:10000 K"(X)" => FractionRing K[X]
 
-theorem FractionRing.exists_isCoprime_eq_div (f : K(X)) :
-    ∃ p q : K[X], IsCoprime p q ∧ f = p.toRatFunc / q.toRatFunc := by
-  sorry
 
 /- First it is easy to show that `K(X)` does not contain any algebraic element over `K` other than
 elements of `K`. Proof: use (a generalized version of) `transcendental_div`.
