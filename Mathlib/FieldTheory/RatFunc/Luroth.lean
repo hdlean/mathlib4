@@ -1,7 +1,7 @@
 /-
-Copyright (c) 2025 Justus Springer and Junyan Xu. All rights reserved.
+Copyright (c) 2025 Miriam Philipp, Justus Springer and Junyan Xu. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Justus Springer, Junyan Xu
+Authors: Miriam Philipp, Justus Springer, Junyan Xu
 -/
 import Mathlib.FieldTheory.IntermediateField.Adjoin.Algebra
 import Mathlib.FieldTheory.IntermediateField.Adjoin.Basic
@@ -77,9 +77,29 @@ theorem adjoin_p_dvd_q_eq_bot_iff : K⟮f⟯ = ⊥ ↔ p.natDegree = 0 ∧ q.nat
   rw [IntermediateField.adjoin_simple_eq_bot_iff, IntermediateField.mem_bot]
   constructor
   · rintro ⟨x, hx⟩
-    /- Here, we need to show that if `p / q` is constant and `p` and `q` are coprime, then both
-    `p` qnd `q` are constant. -/
-    sorry
+    by_cases hq : q = 0
+    · rw [hq] at ⊢ hx coprime
+      simp only [map_zero, div_zero, map_eq_zero] at hx
+      exact ⟨natDegree_eq_zero_of_isUnit (isCoprime_zero_right.mp coprime), natDegree_zero⟩
+    by_cases hp : p = 0
+    · rw [hp] at ⊢ hx coprime
+      simp only [map_zero, zero_div, map_eq_zero] at hx
+      refine ⟨natDegree_zero, natDegree_eq_zero_of_isUnit (isCoprime_zero_right.mp coprime.symm)⟩
+    rw [eq_div_iff (by simpa)] at hx
+    rw [←C_toRatFunc, ←map_mul, (FaithfulSMul.algebraMap_injective _ _).eq_iff] at hx
+    constructor <;> apply natDegree_eq_zero_of_isUnit
+    · by_cases hx_zero : x = 0
+      · rw [hx_zero, map_zero, zero_mul, eq_comm] at hx
+        contradiction
+      apply coprime.isUnit_of_dvd
+      use C x⁻¹
+      trans C x⁻¹ * C x * q
+      · rw [←C_mul, inv_mul_cancel₀ hx_zero, map_one, one_mul]
+      · rw [mul_assoc, hx, mul_comm]
+    · apply coprime.symm.isUnit_of_dvd
+      use C x
+      rw [mul_comm]
+      exact hx.symm
   · rintro ⟨hp, hq⟩
     rw [natDegree_eq_zero] at hp hq
     obtain ⟨a, rfl⟩ := hp
@@ -91,8 +111,17 @@ theorem adjoin_p_dvd_q_eq_bot_iff : K⟮f⟯ = ⊥ ↔ p.natDegree = 0 ∧ q.nat
 local notation "rfX" => toRatFunc (K := K) X
 
 /- First show that `X` generates K(X) over K(f). -/
-theorem adjoin_X_eq_top : K⟮f⟯⟮rfX⟯ = ⊤ := by
-  sorry
+theorem adjoin_f_adjoin_X_eq_top : K⟮f⟯⟮rfX⟯ = ⊤ := by
+  rw [←IntermediateField.restrictScalars_eq_top_iff (K := K),
+    IntermediateField.adjoin_simple_adjoin_simple, eq_top_iff]
+  trans K⟮rfX⟯
+  · sorry
+  · apply IntermediateField.adjoin.mono
+    grind
+
+def adjoin_f_adjoin_X_equiv : K⟮f⟯⟮rfX⟯ ≃ₐ[K⟮f⟯] K(X) :=
+  ((IntermediateField.equivOfEq (adjoin_f_adjoin_X_eq_top p q coprime)).trans
+    IntermediateField.topEquiv)
 
 /- Since `X` generates K(X) over K(f), the degree of the field extension K(X)/K(f) is equal to
 the degree of the minimal polynomial of `X` over K(f). `p - f * q` is the obvious candidate for
@@ -134,19 +163,19 @@ theorem isAlgebraic_div (hq : 0 < q.natDegree) : IsAlgebraic K⟮f⟯ rfX :=
   ⟨minpolyDiv p q, minpolyDiv_ne_zero p q coprime hq,
     minpolyDiv_aeval p q (ne_zero_of_natDegree_gt hq)⟩
 
-theorem isAlgebraic_adjoin_div (hq : 0 < q.natDegree) : Algebra.IsAlgebraic K⟮f⟯ K(X) := by
-  have : Algebra.IsAlgebraic K⟮f⟯ K⟮f⟯⟮rfX⟯ := by
-    apply IntermediateField.isAlgebraic_adjoin_simple
-    rw [←isAlgebraic_iff_isIntegral]
-    exact isAlgebraic_div p q coprime hq
-  exact ((IntermediateField.equivOfEq (adjoin_X_eq_top p q coprime)).trans
-    IntermediateField.topEquiv).isAlgebraic
+theorem isAlgebraic_adjoin_f_adjoin_X (hq : 0 < q.natDegree) :
+    Algebra.IsAlgebraic K⟮f⟯ K⟮f⟯⟮rfX⟯ := by
+  apply IntermediateField.isAlgebraic_adjoin_simple
+  rw [←isAlgebraic_iff_isIntegral]
+  exact isAlgebraic_div p q coprime hq
+
+instance isAlgebraic_adjoin_div (hq : 0 < q.natDegree) : Algebra.IsAlgebraic K⟮f⟯ K(X) := by
+  have : Algebra.IsAlgebraic K⟮f⟯ K⟮f⟯⟮rfX⟯ := isAlgebraic_adjoin_f_adjoin_X p q coprime hq
+  exact (adjoin_f_adjoin_X_equiv p q coprime).isAlgebraic
 
 theorem finrank_eq_natDegree_minpoly (hq : 0 < q.natDegree) :
     Module.finrank K⟮f⟯ K(X) = (minpoly K⟮f⟯ rfX).natDegree := by
-  have e : K⟮f⟯⟮rfX⟯ ≃ₐ[K⟮f⟯] K(X) :=
-    ((IntermediateField.equivOfEq (adjoin_X_eq_top p q coprime)).trans IntermediateField.topEquiv)
-  rw [←e.toLinearEquiv.finrank_eq]
+  rw [←(adjoin_f_adjoin_X_equiv p q coprime).toLinearEquiv.finrank_eq]
   apply IntermediateField.adjoin.finrank
   apply IsAlgebraic.isIntegral
   exact isAlgebraic_div p q coprime hq
@@ -168,17 +197,10 @@ theorem transcendental_adjoin_div (hq : 0 < q.natDegree) : Algebra.Transcendenta
 
 theorem transcendental_div (hq : 0 < q.natDegree) : Transcendental K f := by
   intro h
-  have h₁ : Algebra.IsAlgebraic K K⟮f⟯ := by
-    apply IntermediateField.isAlgebraic_adjoin_simple
-    exact h.isIntegral
-  have h₂ : Algebra.IsAlgebraic K⟮f⟯ K(X) := by
-    exact isAlgebraic_adjoin_div p q coprime hq
-  have h₃ : Algebra.IsAlgebraic K K(X) := by
-    exact Algebra.IsAlgebraic.trans K K⟮f⟯ K(X)
-  have h₄ : Algebra.Transcendental K K(X) := by
-    exact transcendental_polynomial p q coprime
-  rw [Algebra.transcendental_iff_not_isAlgebraic] at h₄
-  contradiction
+  apply Algebra.transcendental_iff_not_isAlgebraic.mp (transcendental_polynomial K)
+  have h₁ : Algebra.IsAlgebraic K K⟮f⟯ := IntermediateField.isAlgebraic_adjoin_simple h.isIntegral
+  have h₂ : Algebra.IsAlgebraic K⟮f⟯ K(X) := isAlgebraic_adjoin_div p q coprime hq
+  exact Algebra.IsAlgebraic.trans K K⟮f⟯ K(X)
 
 local notation "K[f]" => Algebra.adjoin K {f}
 
@@ -198,6 +220,7 @@ def algEquivOfTranscendental (hq : 0 < q.natDegree) : K[X] ≃ₐ[K] K[f] := by
             (Algebra.adjoin K {toRatFunc p / toRatFunc q}) Subtype.property).mp
         fun ⦃a₁ a₂⦄ a ↦ a
   · rw [←AlgHom.range_eq_top, eq_top_iff]
+    intro g _
     sorry
 
 def adjoin_f_NormalizedGCDMonoid (hq : 0 < q.natDegree) : NormalizedGCDMonoid K[f] :=
@@ -209,13 +232,10 @@ lemma algEquivOfTranscendental_apply_X (hq : 0 < q.natDegree) :
     algEquivOfTranscendental p q coprime hq X = ⟨f, Algebra.subset_adjoin rfl⟩ := by
   sorry
 
-#synth EuclideanDomain K[X] -- Polynomial.instEuclideanDomain
-example : IsIntegrallyClosed K[X] := inferInstance
-
 /- Since K[f] is isomorphic to K[X] and K[X] is integrally closed, K[f] is also integrally closed.
 -/
 theorem isIntegrallyClosed_adjoin_div (hq : 0 < q.natDegree) : IsIntegrallyClosed K[f] :=
-  IsIntegrallyClosed.of_equiv (algEquivOfTranscendental p q coprime hq).toRingEquiv
+  .of_equiv (algEquivOfTranscendental p q coprime hq).toRingEquiv
 
 variable (lt : q.natDegree ≤ p.natDegree)
 include lt
@@ -287,7 +307,6 @@ def minpolyDiv' : K[f][X] :=
   p.map (algebraMap ..) - C ⟨f, Algebra.subset_adjoin rfl⟩ * q.map (algebraMap ..)
 
 open scoped IntermediateField.algebraAdjoinAdjoin
-#synth Algebra K[f] K⟮f⟯
 
 omit coprime lt in
 theorem map_minpolyDiv' : (minpolyDiv' p q).map (algebraMap ..) = minpolyDiv p q := by
@@ -322,20 +341,15 @@ lemma aux (hq : q ≠ 0) : (C p - X * C q).natDegree = 1 := by
 
 lemma aux2 (hq : q ≠ 0) : (C p - X * C q).IsPrimitive := by
   classical
-  rw [isPrimitive_iff_content_eq_one]
-  rw [content_eq_gcd_leadingCoeff_content_eraseLead]
-  have h₃ : (C p - X * C q).leadingCoeff = - q := by
-    rw [leadingCoeff]
-    rw [aux p q hq]
+  rw [isPrimitive_iff_content_eq_one, content_eq_gcd_leadingCoeff_content_eraseLead]
+  have h₃ : (C p - X * C q).leadingCoeff = -q := by
+    rw [leadingCoeff, aux p q hq]
     simp only [X_mul_C, coeff_sub, coeff_C_succ, coeff_mul_X, coeff_C_zero, zero_sub]
   rw [h₃]
   have h₄ : (C p - X * C q).eraseLead = C p := by
-    rw [sub_eq_add_neg]
-    rw [eraseLead_add_of_natDegree_lt_right]
-    · simp
-      rw [neg_mul_eq_neg_mul]
-      rw [← C_neg]
-      rw [eraseLead_C_mul_X]
+    rw [sub_eq_add_neg, eraseLead_add_of_natDegree_lt_right]
+    · simp only [X_mul_C, add_eq_left]
+      rw [neg_mul_eq_neg_mul, ←C_neg, eraseLead_C_mul_X]
     simp
     rw [natDegree_C_mul_X]
     exact zero_lt_one
@@ -382,7 +396,6 @@ theorem irreducible_minpolyDiv' (hq : 0 < q.natDegree) : Irreducible (minpolyDiv
   rw [← algEquivOfTranscendental_swap_C_sub_C_X p q coprime lt hq]
   sorry
 
-#check MulEquiv.irreducible_iff
 
 theorem irreducible_minpolyDiv (hq : 0 < q.natDegree) : Irreducible (minpolyDiv p q) := by
   rw [←map_minpolyDiv']
@@ -394,7 +407,8 @@ theorem irreducible_minpolyDiv (hq : 0 < q.natDegree) : Irreducible (minpolyDiv 
 
 theorem minpolyDiv_eq_minpoly (hq : 0 < q.natDegree) :
     (minpolyDiv p q).natDegree = (minpoly K⟮f⟯ rfX).natDegree := by
-  rw [←minpoly.eq_of_irreducible (irreducible_minpolyDiv p q coprime lt hq), mul_comm, natDegree_C_mul]
+  rw [←minpoly.eq_of_irreducible (irreducible_minpolyDiv p q coprime lt hq), mul_comm,
+    natDegree_C_mul]
   · apply inv_ne_zero
     rw [leadingCoeff_ne_zero]
     exact minpolyDiv_ne_zero p q coprime hq
@@ -408,20 +422,11 @@ theorem finrank_eq_max_natDegree (hq : 0 < q.natDegree) :
   rw [←minpolyDiv_eq_minpoly p q coprime lt hq]
   exact natDegree_minpolyDiv p q coprime lt hq
 
-/- Next steps:
-
-* Remove the condition `q.natDegree < p.natDegree`: if `p.natDegree < q.natDegree`, notice that
-  `q / p` generates the same intermediate field as `p / q`. If `p.natDegree = q.natDegree`,
-  notice that `(p - c * q) / q` generates the same intermediate field, and you can choose `c`
-  such that `p - c * q` has a lower degree.
-  It can happen that both `p` and `q` are constants (i.e. of degree 0), in which case
-  `K⟮f⟯ = ⊥` and [K(X) : K⟮f⟯] = ∞, but in Lean we have `Module.finrank K⟮f⟯ K(X) = 0`.
-
-* Also remove these conditions from `transcendental_div`.
-
-* Now we are ready to attack Lüroth's theorem.
-  Let `E` be an intermediate field between `K` and `K(X)`,
-  we must show that `E = K⟮f⟯` for some `f : K(X)` transcendental over `K`. -/
+/-
+Now we are ready to attack Lüroth's theorem.
+Let `E` be an intermediate field between `K` and `K(X)`,
+we must show that `E = K⟮f⟯` for some `f : K(X)` transcendental over `K`.
+-/
 
 end
 
@@ -449,7 +454,7 @@ instance : Algebra.IsAlgebraic E K(X) := by
   -- Choose `f ∈ E \ K`, then `K(X)` is algebraic over `K⟮f⟯`, and therefore algebraic over `E`.
 
 /-- The minimal polynomial of `X : K(X)` over an intermediate field `E`. -/
-def IntermediateField.minpolyX : E[X] :=
+noncomputable def IntermediateField.minpolyX : E[X] :=
   minpoly E (X : K[X]).toRatFunc
 
 -- TODO: fill in more details here from [Cohn] and [Jacobson]

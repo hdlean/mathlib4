@@ -288,7 +288,6 @@ def scheme : Scheme where
       so v ∈ basicOpen k {f} or v ∈ basicOpen k {f⁻¹}. Now use `restrictIsoSpec`. -/
 
 instance : CompactSpace (scheme k K) := inferInstanceAs <| CompactSpace <| Place k K
-
 instance : QuasiSeparatedSpace (scheme k K) := inferInstanceAs <| QuasiSeparatedSpace <| Place k K
 
 -- In fact the complement of every basic open is finite, see [Hartshorne, Lemma I.6.5].
