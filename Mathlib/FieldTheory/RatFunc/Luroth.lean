@@ -84,33 +84,22 @@ local notation "f" => p.toRatFunc / q.toRatFunc
 /- Show that `K⟮f⟯ = K` iff both `p` and `q` are constant. -/
 theorem adjoin_p_dvd_q_eq_bot_iff : K⟮f⟯ = ⊥ ↔ p.natDegree = 0 ∧ q.natDegree = 0 := by
   rw [IntermediateField.adjoin_simple_eq_bot_iff, IntermediateField.mem_bot]
-  constructor
-  · rintro ⟨x, hx⟩
-    by_cases hq : q = 0
-    · rw [hq] at ⊢ hx coprime
-      simp only [map_zero, div_zero, map_eq_zero] at hx
+  refine ⟨fun ⟨x, hx⟩ ↦ ?_, fun ⟨hp, hq⟩ ↦ ?_⟩
+  · obtain rfl | hq := eq_or_ne q 0
+    · simp only [map_zero, div_zero, map_eq_zero] at hx
       exact ⟨natDegree_eq_zero_of_isUnit (isCoprime_zero_right.mp coprime), natDegree_zero⟩
-    by_cases hp : p = 0
-    · rw [hp] at ⊢ hx coprime
-      simp only [map_zero, zero_div, map_eq_zero] at hx
-      refine ⟨natDegree_zero, natDegree_eq_zero_of_isUnit (isCoprime_zero_right.mp coprime.symm)⟩
+    obtain rfl | hp := eq_or_ne p 0
+    · simp only [map_zero, zero_div, map_eq_zero] at hx
+      exact ⟨natDegree_zero, natDegree_eq_zero_of_isUnit (isCoprime_zero_right.mp coprime.symm)⟩
     rw [eq_div_iff (by simpa)] at hx
-    rw [←C_toRatFunc, ←map_mul, (FaithfulSMul.algebraMap_injective _ _).eq_iff] at hx
-    constructor <;> apply natDegree_eq_zero_of_isUnit
-    · by_cases hx_zero : x = 0
-      · rw [hx_zero, map_zero, zero_mul, eq_comm] at hx
-        contradiction
-      apply coprime.isUnit_of_dvd
-      use C x⁻¹
-      trans C x⁻¹ * C x * q
-      · rw [←C_mul, inv_mul_cancel₀ hx_zero, map_one, one_mul]
-      · rw [mul_assoc, hx, mul_comm]
-    · apply coprime.symm.isUnit_of_dvd
-      use C x
-      rw [mul_comm]
-      exact hx.symm
-  · rintro ⟨hp, hq⟩
-    rw [natDegree_eq_zero] at hp hq
+    rw [←C_toRatFunc, ←map_mul, (IsFractionRing.injective ..).eq_iff] at hx
+    cases hx
+    have : q.natDegree = 0 :=
+      natDegree_eq_zero_of_isUnit <| coprime.symm.isUnit_of_dvd ⟨_, mul_comm ..⟩
+    rw [mul_ne_zero_iff] at hp
+    rw [natDegree_mul hp.1 hp.2, this, add_zero]
+    exact ⟨natDegree_C _, rfl⟩
+  · rw [natDegree_eq_zero] at hp hq
     obtain ⟨a, rfl⟩ := hp
     obtain ⟨b, rfl⟩ := hq
     use a / b
@@ -134,8 +123,7 @@ theorem adjoin_f_adjoin_X_eq_top : K⟮f⟯⟮rfX⟯ = ⊤ := by
     grind
 
 def adjoin_f_adjoin_X_equiv : K⟮f⟯⟮rfX⟯ ≃ₐ[K⟮f⟯] K(X) :=
-  ((IntermediateField.equivOfEq (adjoin_f_adjoin_X_eq_top p q)).trans
-    IntermediateField.topEquiv)
+  (IntermediateField.equivOfEq (adjoin_f_adjoin_X_eq_top p q)).trans IntermediateField.topEquiv
 
 /- Since `X` generates K(X) over K(f), the degree of the field extension K(X)/K(f) is equal to
 the degree of the minimal polynomial of `X` over K(f). `p - f * q` is the obvious candidate for
@@ -250,8 +238,7 @@ lemma algEquivOfTranscendental_apply_X (hq : 0 < q.natDegree) :
     algEquivOfTranscendental p q coprime hq X = ⟨f, Algebra.subset_adjoin rfl⟩ := by
   rw [algEquivOfTranscendental_apply, Subtype.ext_iff, coe_aeval_mk_apply, aeval_X]
 
-/- Since K[f] is isomorphic to K[X] and K[X] is integrally closed, K[f] is also integrally closed.
--/
+/- Since K[f] is isomorphic to K[X] and K[X] is integrally closed, K[f] is also integrally closed.-/
 theorem isIntegrallyClosed_adjoin_div (hq : 0 < q.natDegree) : IsIntegrallyClosed K[f] :=
   .of_equiv (algEquivOfTranscendental p q coprime hq).toRingEquiv
 
@@ -328,13 +315,12 @@ open scoped IntermediateField.algebraAdjoinAdjoin
 
 omit coprime lt in
 theorem map_minpolyDiv' : (minpolyDiv' p q).map (algebraMap ..) = minpolyDiv p q := by
-  unfold minpolyDiv'
-  unfold minpolyDiv
-  simp only [Polynomial.map_sub, Polynomial.map_mul, map_C]
-  congr 1 <;> rw [Polynomial.map_map, ←IsScalarTower.algebraMap_eq]
-  simp only [mul_eq_mul_right_iff, C_inj, Polynomial.map_eq_zero]
-  left
-  rfl
+  simp only [minpolyDiv', Polynomial.map_sub, Polynomial.map_mul, map_C]
+  congr 1
+  · rw [map_map, ←IsScalarTower.algebraMap_eq]
+  · rw [map_map, ←IsScalarTower.algebraMap_eq]
+    simp only [mul_eq_mul_right_iff, C_inj]
+    exact .inl rfl
 
 theorem natDegree_minpolyDiv' (hq : 0 < q.natDegree) :
     (minpolyDiv' p q).natDegree = max p.natDegree q.natDegree := by
@@ -353,12 +339,8 @@ theorem algEquivOfTranscendental_swap_C_sub_C_X (hq : 0 < q.natDegree) :
 
 omit coprime lt in
 lemma C_sub_X_mul_C_natDegree_eq_one (hq : q ≠ 0) : (C p - X * C q).natDegree = 1 := by
-  have h₁ : (C p - X * C q) = (C (- q) * X + C p) := by
-    simp
-    ring
-  rw [h₁]
-  apply Polynomial.natDegree_linear
-  exact neg_ne_zero.mpr hq
+  rw [show C p - X * C q = C (- q) * X + C p by simp only [X_mul_C, map_neg, neg_mul]; ring]
+  exact natDegree_linear (neg_ne_zero.mpr hq)
 
 omit lt in
 lemma C_p_neg_X_mul_C_q_isPrimitive (hq : q ≠ 0) : (C p - X * C q).IsPrimitive := by
@@ -380,7 +362,7 @@ lemma C_p_neg_X_mul_C_q_isPrimitive (hq : q ≠ 0) : (C p - X * C q).IsPrimitive
 omit lt in
 theorem irreducible_mul_X_sub (hq : q ≠ 0) : Irreducible (C p - X * C q) := by
   classical
-  have hnezero : (C p - X * C q) ≠ 0 := by
+  have hnezero : C p - X * C q ≠ 0 := by
     apply ne_zero_of_natDegree_gt (n := 0)
     rw [C_sub_X_mul_C_natDegree_eq_one p q hq]
     exact zero_lt_one
@@ -454,7 +436,7 @@ variable (E : IntermediateField K K(X)) (hE : E ≠ ⊥)
 include hE
 
 instance : Algebra.IsAlgebraic E K(X) := by
-  have h₁ : ∃ p q : K[X], IsCoprime p q ∧ ¬ (p.natDegree = 0 ∧ q.natDegree = 0) ∧ p.toRatFunc / q.toRatFunc ∈ E:= by
+  have h₁ : ∃ p q : K[X], IsCoprime p q ∧ ¬ (p.natDegree = 0 ∧ q.natDegree = 0) ∧ p.toRatFunc / q.toRatFunc ∈ E := by
     have h₂ : ∃ f ∈ E, K⟮f⟯ ≠ ⊥ := by
       sorry
     rcases h₂ with ⟨f, finE, fnotinK⟩
