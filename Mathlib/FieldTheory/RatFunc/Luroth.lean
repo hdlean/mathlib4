@@ -450,12 +450,55 @@ variable (E : IntermediateField K K(X)) (hE : E ≠ ⊥)
 include hE
 
 instance : Algebra.IsAlgebraic E K(X) := by
-  sorry
-  -- Choose `f ∈ E \ K`, then `K(X)` is algebraic over `K⟮f⟯`, and therefore algebraic over `E`.
+  have h₁ : ∃ p q : K[X], IsCoprime p q ∧ ¬ (p.natDegree = 0 ∧ q.natDegree = 0) ∧ p.toRatFunc / q.toRatFunc ∈ E:= by
+    have h₂ : ∃ f ∈ E, K⟮f⟯ ≠ ⊥ := by
+      sorry
+    rcases h₂ with ⟨f, finE, fnotinK⟩
+    have h₃ : ∃ p q : K[X], IsCoprime p q ∧ f = p.toRatFunc / q.toRatFunc := by
+      exact FractionRing.exists_isCoprime_eq_div f
+    rcases h₃ with ⟨p, q, coprimepq, feqpdivq⟩
+    use p
+    use q
+    constructor
+    · exact coprimepq
+    · constructor
+      · intro h
+        rw [← adjoin_p_dvd_q_eq_bot_iff p q coprimepq] at h
+        rw [← feqpdivq] at h
+        contradiction
+      · rw [← feqpdivq]
+        exact finE
+  rcases h₁ with ⟨p, q, rest⟩
+  have h₄ : Algebra.IsAlgebraic K⟮p.toRatFunc / q.toRatFunc⟯ K(X) := by
+    by_cases hq : 0 < q.natDegree
+    · exact isAlgebraic_adjoin_div p q rest.1 hq
+    · sorry
+  have h₅ : K⟮p.toRatFunc / q.toRatFunc⟯ ≤ E := by
+    rw [IntermediateField.adjoin_simple_le_iff]
+    exact rest.2.2
+  apply @IntermediateField.isAlgebraic_tower_top K⟮p.toRatFunc / q.toRatFunc⟯ K(X) _ _ _ E h₄
+  -- problem: E has to be an IntermediateField of `K⟮p.toRatFunc / q.toRatFunc⟯` and `K(X)`
 
 /-- The minimal polynomial of `X : K(X)` over an intermediate field `E`. -/
 noncomputable def IntermediateField.minpolyX : E[X] :=
   minpoly E (X : K[X]).toRatFunc
+
+/- Write each coefficient as a rational function such that the numerator and denominator
+  are coprime. Then multiply the minimal polynomial with the least common multiple of
+  the denominators. The resulting polynomial over `K(X)` is primitive. -/
+
+/- Since `X` is not algebraic over K, the minimal polynomial of `X` over `E`
+  must have a coefficient not contained in `K`. -/
+lemma minpolyX_existence_coeff_transcendent : ∃ j : ℕ, IntermediateField.minpolyX.coeff j ∉ K := by
+  sorry
+
+/- Choose such a coefficient and call this `uj`, write `uj` as a fraction of coprime polynomials
+  `p` and `q` over `K[X]`. The field `K(uj)` is a subfield of `E` of degree
+  `max p.natDegree q.natDegree` by above.
+  The goal is to show that these two fields are equal. This implies luroth.
+  For this it suffices to show that `max p.natDegree q.natDegree` is smaller or equal than
+  the degree of `IntermediateField.minpolyX`. -/
+
 
 -- TODO: fill in more details here from [Cohn] and [Jacobson]
 
