@@ -89,13 +89,7 @@ def basicOpen (s : Finset K) : Opens (Place R K) where
 
 @[simp]
 theorem basicOpen_def (s : Finset K) :
-  v ∈ basicOpen R s ↔ (s : Set K) ⊆ v := by
-  constructor
-  · intro h x xs
-    exact h xs
-  intro sv
-  exact sv
-
+  v ∈ basicOpen R s ↔ (s : Set K) ⊆ v := Iff.rfl
 
 open Polynomial in
 @[stacks 090P]
@@ -234,11 +228,6 @@ theorem iInf_eq_integralClosure :
     exact mem_iInf.mpr this
 
 
-
-
-
-
-
 theorem iInf_eq_integralClosure_adjoin (s : Finset K) :
     (⨅ v : basicOpen k s, v.1.toSubalgebra) =
     (integralClosure (adjoin k (s : Set K)) K).restrictScalars k := by
@@ -253,7 +242,39 @@ theorem basicOpen_union [DecidableEq K] {s t : Finset K} :
 
 theorem isTopologicalBasis :
     IsTopologicalBasis (α := Place R K) {basicOpen R s | s : Finset K} := by
-  sorry
+  have main : generateFrom {{v | f ∈ v} | f : K} =
+          generateFrom {(basicOpen R s).carrier | s : Finset K} := by
+    apply le_antisymm
+    apply le_generateFrom
+    -- intro U hU
+    simp only [Opens.carrier_eq_coe, Set.mem_setOf_eq, forall_exists_index, forall_apply_eq_imp_iff]
+    intro s
+    exact Opens.isOpen (basicOpen R s)
+    apply le_generateFrom
+    simp only [Set.mem_setOf_eq, Opens.carrier_eq_coe, forall_exists_index, forall_apply_eq_imp_iff]
+    intro f
+    have : {v | f ∈ v} = (basicOpen R {f}).carrier := by
+      ext v
+      simp [basicOpen_def]
+    rw [this]
+    simp only [Opens.carrier_eq_coe]
+    apply TopologicalSpace.isOpen_generateFrom_of_mem
+    simp
+
+  refine isTopologicalBasis_of_subbasis_of_finiteInter main ?_
+  refine { univ_mem := ?_, inter_mem := ?_ }
+  · use ∅
+    ext V
+    constructor
+    · intro hV
+      trivial
+    intro
+    simp
+  simp only [Set.mem_setOf_eq, forall_exists_index, forall_apply_eq_imp_iff]
+  intro s t
+  use s ∪ t
+  exact basicOpen_union
+
 
 section Compact
 
