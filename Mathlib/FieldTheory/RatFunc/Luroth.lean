@@ -8,6 +8,7 @@ import Mathlib.FieldTheory.IntermediateField.Adjoin.Basic
 import Mathlib.RingTheory.Polynomial.GaussLemma
 import Mathlib.RingTheory.Polynomial.RationalRoot
 import Mathlib.FieldTheory.RatFunc.Basic
+import Mathlib.FieldTheory.IntermediateField.Adjoin.Defs
 
 /-!
 # Lüroth's theorem
@@ -421,6 +422,16 @@ end
 
 end Polynomial
 
+section
+
+variable (K L : Type*) [Field K] [Field L] [Algebra K L]
+theorem IntermediateField.adjoin_inv {x : L} :
+    adjoin K {x⁻¹} = adjoin K {x} :=
+  le_antisymm (adjoin_le_iff.mpr <| by simpa using mem_adjoin_simple_self K x)
+    (adjoin_le_iff.mpr <| by rintro _ rfl; apply inv_mem_iff.mp; exact mem_adjoin_simple_self K _)
+
+end
+
 open Polynomial
 
 local notation:10000 K"(X)" => FractionRing K[X]
@@ -438,7 +449,18 @@ include hE
 instance : Algebra.IsAlgebraic E K(X) := by
   have h₁ : ∃ p q : K[X], IsCoprime p q ∧ ¬ (p.natDegree = 0 ∧ q.natDegree = 0) ∧ p.toRatFunc / q.toRatFunc ∈ E := by
     have h₂ : ∃ f ∈ E, K⟮f⟯ ≠ ⊥ := by
-      sorry
+      have g₁ : ¬ (E ≤ ⊥) := by
+          rwa [le_bot_iff]
+      rw [SetLike.not_le_iff_exists] at g₁
+      rcases g₁ with ⟨x, xin, xnotin⟩
+      use x
+      constructor
+      · exact xin
+      · contrapose xnotin
+        push_neg
+        rw [← IntermediateField.adjoin_simple_eq_bot_iff]
+        push_neg at xnotin
+        exact xnotin
     rcases h₂ with ⟨f, finE, fnotinK⟩
     have h₃ : ∃ p q : K[X], IsCoprime p q ∧ f = p.toRatFunc / q.toRatFunc := by
       exact FractionRing.exists_isCoprime_eq_div f
@@ -458,12 +480,33 @@ instance : Algebra.IsAlgebraic E K(X) := by
   have h₄ : Algebra.IsAlgebraic K⟮p.toRatFunc / q.toRatFunc⟯ K(X) := by
     by_cases hq : 0 < q.natDegree
     · exact isAlgebraic_adjoin_div p q rest.1 hq
-    · sorry
+    · have h₅ : q.natDegree = 0 := by
+        exact Nat.eq_zero_of_not_pos hq
+      have h₆ : 0 < p.natDegree := by
+        rcases rest with ⟨coprime, degree, quotient⟩
+        push_neg at degree
+        contrapose degree
+        push_neg
+        constructor
+        · exact Nat.eq_zero_of_not_pos degree
+        · exact h₅
+      have h₇ : K⟮toRatFunc p / toRatFunc q⟯ = K⟮toRatFunc q / toRatFunc p⟯ := by
+        have h₈ : toRatFunc p / toRatFunc q = (toRatFunc q / toRatFunc p)⁻¹ := by
+          exact Eq.symm (inv_div (toRatFunc q) (toRatFunc p))
+        rw [h₈]
+        exact IntermediateField.adjoin_inv K K(X)
+      rw [h₇]
+      have h₉ : IsCoprime q p := by
+        have g₂ : IsCoprime p q := by
+          exact rest.1
+        exact id (IsCoprime.symm g₂)
+      exact isAlgebraic_adjoin_div q p h₉ h₆
   have h₅ : K⟮p.toRatFunc / q.toRatFunc⟯ ≤ E := by
     rw [IntermediateField.adjoin_simple_le_iff]
     exact rest.2.2
-  apply @IntermediateField.isAlgebraic_tower_top K⟮p.toRatFunc / q.toRatFunc⟯ K(X) _ _ _ E h₄
-  -- problem: E has to be an IntermediateField of `K⟮p.toRatFunc / q.toRatFunc⟯` and `K(X)`
+  let : Algebra K⟮p.toRatFunc / q.toRatFunc⟯ E := (IntermediateField.inclusion h₅).toAlgebra
+  have : IsScalarTower K⟮p.toRatFunc / q.toRatFunc⟯ E K(X) := .of_algebraMap_eq fun _ _ _ => rfl
+  apply Algebra.IsAlgebraic.tower_top (K := K⟮p.toRatFunc / q.toRatFunc⟯)
 
 /-- The minimal polynomial of `X : K(X)` over an intermediate field `E`. -/
 noncomputable def IntermediateField.minpolyX : E[X] :=
