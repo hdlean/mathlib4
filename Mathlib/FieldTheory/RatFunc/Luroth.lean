@@ -6,7 +6,9 @@ Authors: Miriam Philipp, Justus Springer, Junyan Xu
 module
 
 public import Mathlib.FieldTheory.RatFunc.AsPolynomial
+public import Mathlib.FieldTheory.Relrank
 public import Mathlib.Algebra.Polynomial.Bivariate
+public import Mathlib.RingTheory.Localization.Algebra
 
 /-!
 # Lüroth's theorem
@@ -41,13 +43,15 @@ variable {K : Type*} [Field K] (f : RatFunc K)
 theorem adjoin_X : K⟮(X : RatFunc K)⟯ = ⊤ :=
   eq_top_iff.mpr fun g _ ↦ (mem_adjoin_simple_iff _ _).mpr ⟨g.num, g.denom, by simp⟩
 
-theorem adjoin_adjoin_X : K⟮f⟯⟮(X : RatFunc K)⟯ = ⊤ := by
-  rw [← restrictScalars_eq_top_iff (K := K), adjoin_simple_adjoin_simple, eq_top_iff]
-  exact le_trans (le_of_eq adjoin_X.symm) (IntermediateField.adjoin.mono _ _ _ (by simp))
+theorem IntermediateField.adjoin_X (E : IntermediateField K (RatFunc K)) :
+    E⟮(X : RatFunc K)⟯ = ⊤ := by
+  rw [← restrictScalars_eq_top_iff (K := K), restrictScalars_adjoin, eq_top_iff]
+  exact le_trans (le_of_eq RatFunc.adjoin_X.symm) (IntermediateField.adjoin.mono _ _ _ (by simp))
 
 /-- The equivalence between `K⟮f⟯⟮X⟯` and `RatFunc K` as `K⟮f⟯`-algebras. -/
-noncomputable def adjoinAdjoinXEquiv : K⟮f⟯⟮(X : RatFunc K)⟯ ≃ₐ[K⟮f⟯] RatFunc K :=
-  (IntermediateField.equivOfEq (adjoin_adjoin_X f)).trans IntermediateField.topEquiv
+noncomputable def IntermediateField.adjoinXEquiv (E : IntermediateField K (RatFunc K)) :
+    E⟮(X : RatFunc K)⟯ ≃ₐ[E] RatFunc K :=
+  (IntermediateField.equivOfEq (IntermediateField.adjoin_X E)).trans IntermediateField.topEquiv
 
 /-- The minimal polynomial of `X` over `K⟮f⟯`. It is defined as `f.num - f * f.denom`, viewed
 as a polynomial with coefficients in `K⟮f⟯`. -/
@@ -92,7 +96,7 @@ theorem isAlgebraic_adjoin_simple_X : IsAlgebraic K⟮f⟯ (X : RatFunc K) :=
 theorem isAlgebraic_adjoin_simple_X' : Algebra.IsAlgebraic K⟮f⟯ (RatFunc K) := by
   have : Algebra.IsAlgebraic K⟮f⟯ K⟮f⟯⟮(X : RatFunc K)⟯ :=
     isAlgebraic_adjoin_simple <| isAlgebraic_iff_isIntegral.mp <| f.isAlgebraic_adjoin_simple_X hf
-  exact f.adjoinAdjoinXEquiv.isAlgebraic
+  exact (IntermediateField.adjoinXEquiv K⟮f⟯).isAlgebraic
 
 theorem natDegree_denom_le_natDegree_minpolyX : f.denom.natDegree ≤ f.minpolyX.natDegree :=
   Polynomial.le_natDegree_of_ne_zero fun H ↦ hf (f.eq_C_of_minpolyX_coeff_eq_zero
@@ -217,10 +221,68 @@ theorem finrank_eq_max_natDegree :
       Module.finrank_of_not_finite fun H ↦  Algebra.transcendental_iff_not_isAlgebraic.mp
       transcendental <| Algebra.IsAlgebraic.of_finite K (RatFunc K)]
     simp
-  rw [← (adjoinAdjoinXEquiv f).toLinearEquiv.finrank_eq,
+  rw [← (IntermediateField.adjoinXEquiv K⟮f⟯).toLinearEquiv.finrank_eq,
     adjoin.finrank (f.isAlgebraic_adjoin_simple_X hf).isIntegral,
     ← minpoly.eq_of_irreducible (f.irreducible_minpolyX hf) f.minpolyX_aeval_X, mul_comm,
     Polynomial.natDegree_C_mul <| inv_ne_zero <| Polynomial.leadingCoeff_ne_zero.mpr fun H ↦
     hf ((minpolyX_eq_zero_iff f).mp H), natDegree_minpolyX]
 
-end RatFunc
+
+variable (E : IntermediateField K (RatFunc K)) (hE : E ≠ ⊥)
+include hE
+
+theorem IntermediateField.isAlgebraic_X : IsAlgebraic E (X : RatFunc K) := by
+  rw [ne_eq, ← le_bot_iff, SetLike.not_le_iff_exists] at hE
+  obtain ⟨f, hf₁, hf₂⟩ := hE
+  exact IsAlgebraic.tower_top_of_subalgebra_le (adjoin_simple_le_iff.mpr hf₁) <|
+    f.isAlgebraic_adjoin_simple_X (by rintro ⟨c, rfl⟩; exact hf₂ ⟨c, rfl⟩)
+
+theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
+  let ψ : E[X] := minpoly E (X : RatFunc K)
+  obtain ⟨i, hi⟩ : ∃ i, ψ.coeff i ∉ (algebraMap K E).range := by
+    by_contra!
+    rw [← Polynomial.mem_map_range] at this
+    obtain ⟨ψ', hψ'⟩ := this
+    refine transcendental_X (K := K) ⟨ψ', ?_, ?_⟩
+    · rintro rfl
+      rw [Polynomial.coe_mapRingHom, Polynomial.map_zero, eq_comm] at hψ'
+      exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral hψ'
+    · replace hψ' := congrArg (Polynomial.aeval (X : RatFunc K)) hψ'
+      rw [Polynomial.coe_mapRingHom, Polynomial.aeval_map_algebraMap, aeval_X_left_eq_algebraMap,
+        minpoly.aeval, map_eq_zero_iff _ (algebraMap_injective K)] at hψ'
+      rw [aeval_X_left_eq_algebraMap, FaithfulSMul.algebraMap_eq_zero_iff]
+      exact hψ'
+  let u : RatFunc K := ψ.coeff i
+  use u
+  have adjoin_u_le : K⟮u⟯ ≤ E := adjoin_simple_le_iff.mpr (Subtype.property _)
+  obtain ⟨q, hq⟩ : ψ ∣ (minpolyX u).mapAlgHom (IntermediateField.inclusion adjoin_u_le) := by
+    apply minpoly.dvd
+    simp only [Polynomial.coe_mapAlgHom, Polynomial.map_sub, Polynomial.map_map,
+      AlgHom.comp_algebraMap_of_tower, Polynomial.map_mul, Polynomial.map_C, RingHom.coe_coe,
+      Polynomial.aeval_sub, Polynomial.aeval_map_algebraMap, aeval_X_left_eq_algebraMap, map_mul,
+      Polynomial.aeval_C, IntermediateField.algebraMap_apply, coe_inclusion, AdjoinSimple.coe_gen]
+    sorry
+
+  simp [Polynomial.map_map] at hq
+  sorry
+
+section experiments
+
+variable {R K : Type*} [CommRing R] [IsDomain R] [NormalizedGCDMonoid R] [Field K]
+  [Algebra R K] [IsFractionRing R K]
+
+example (f : K[X]) : ∃ (g : R[X]) (b : R), Polynomial.map (algebraMap R K) g = b • f ∧
+    g.IsPrimitive := by
+  let g := IsLocalization.integerNormalization (nonZeroDivisors R) f
+  let g' := g.primPart
+  use g
+  obtain ⟨b, hb⟩ := IsLocalization.integerNormalization_map_to_map (nonZeroDivisors R) f
+  use b
+  refine ⟨hb, ?_⟩
+  sorry
+
+attribute[instance] Polynomial.isLocalization
+
+#synth @IsLocalization K[X][X] Polynomial.commSemiring (Submonoid.map Polynomial.C (nonZeroDivisors K[X])) (RatFunc K)[X] Polynomial.commSemiring (Polynomial.mapRingHom (algebraMap K[X] (RatFunc K))).toAlgebra
+
+end experiments
