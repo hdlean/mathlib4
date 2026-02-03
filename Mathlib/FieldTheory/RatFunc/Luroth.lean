@@ -60,7 +60,7 @@ noncomputable abbrev minpolyX : K⟮f⟯[X] :=
   Polynomial.C (AdjoinSimple.gen K f) * f.denom.map (algebraMap K K⟮f⟯)
 
 @[simp]
-theorem C_minpolyX (x : K) : minpolyX (C x) = 0 := by
+theorem C_minpolyX (x : K) : (C x).minpolyX = 0 := by
   rw [minpolyX, num_C, Polynomial.map_C, denom_C, Polynomial.map_one, mul_one, sub_eq_zero,
     Polynomial.C_inj, Subtype.ext_iff, AdjoinSimple.coe_gen, SubalgebraClass.coe_algebraMap,
     algebraMap_eq_C]
@@ -137,7 +137,6 @@ theorem transcendental_of_ne_C : Transcendental K f := by
   have tr : Algebra.Transcendental K (RatFunc K) := by infer_instance
   rw [Algebra.transcendental_iff_not_isAlgebraic] at tr
   exact tr <| Algebra.IsAlgebraic.trans _ _ _ (alg := f.isAlgebraic_adjoin_simple_X' hf)
-
 
 theorem transcendental_of_ne_C' :
     Transcendental K (⟨f, Algebra.self_mem_adjoin_singleton K f⟩ : K[f]):= by
@@ -240,9 +239,8 @@ theorem IntermediateField.isAlgebraic_X : IsAlgebraic E (X : RatFunc K) := by
 theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
   let ψ : E[X] := minpoly E (X : RatFunc K)
   obtain ⟨i, hi⟩ : ∃ i, ψ.coeff i ∉ (algebraMap K E).range := by
-    by_contra!
-    rw [← Polynomial.mem_map_range] at this
-    obtain ⟨ψ', hψ'⟩ := this
+    by_contra! h
+    obtain ⟨ψ', hψ'⟩ := (Polynomial.mem_map_range _).mpr h
     refine transcendental_X (K := K) ⟨ψ', ?_, ?_⟩
     · rintro rfl
       rw [Polynomial.coe_mapRingHom, Polynomial.map_zero, eq_comm] at hψ'
@@ -257,13 +255,8 @@ theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
   have adjoin_u_le : K⟮u⟯ ≤ E := adjoin_simple_le_iff.mpr (Subtype.property _)
   obtain ⟨q, hq⟩ : ψ ∣ (minpolyX u).mapAlgHom (IntermediateField.inclusion adjoin_u_le) := by
     apply minpoly.dvd
-    simp only [Polynomial.coe_mapAlgHom, Polynomial.map_sub, Polynomial.map_map,
-      AlgHom.comp_algebraMap_of_tower, Polynomial.map_mul, Polynomial.map_C, RingHom.coe_coe,
-      Polynomial.aeval_sub, Polynomial.aeval_map_algebraMap, aeval_X_left_eq_algebraMap, map_mul,
-      Polynomial.aeval_C, IntermediateField.algebraMap_apply, coe_inclusion, AdjoinSimple.coe_gen]
-    sorry
-
-  simp [Polynomial.map_map] at hq
+    rw [Polynomial.coe_mapAlgHom, ← Polynomial.aeval_eq_aeval_map (by ext; simp)]
+    exact u.minpolyX_aeval_X
   sorry
 
 section experiments
