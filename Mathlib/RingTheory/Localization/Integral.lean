@@ -10,7 +10,7 @@ public import Mathlib.Algebra.Polynomial.Lifts
 public import Mathlib.RingTheory.Algebraic.Integral
 public import Mathlib.RingTheory.IntegralClosure.Algebra.Basic
 public import Mathlib.RingTheory.Localization.FractionRing
-public import Mathlib.RingTheory.Localization.Integer
+public import Mathlib.RingTheory.Localization.Algebra
 
 /-!
 # Integral and algebraic elements of a fraction field
@@ -39,6 +39,8 @@ section IntegerNormalization
 open Polynomial
 
 variable [IsLocalization M S]
+
+attribute [local instance] Polynomial.isLocalization
 
 open scoped Classical in
 /-- `coeffIntegerNormalization p` gives the coefficients of the polynomial
