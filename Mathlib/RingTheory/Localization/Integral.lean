@@ -36,26 +36,29 @@ open Polynomial
 
 variable [IsLocalization M S]
 
-attribute [local instance] Polynomial.algebra Polynomial.isLocalization
+attribute [local instance] Polynomial.algebra Polynomial.isLocalization in
+theorem exists_integer_polynomial_multiple (p : S[X]) :
+    ∃ b : M, IsInteger R[X] ((b : R) • p) := by
+  obtain ⟨⟨_, b, hb, rfl⟩, h⟩ := (exists_integer_multiple (Submonoid.map C M) p)
+  use ⟨b, hb⟩
+  rw [Subtype.coe_mk, C_eq_algebraMap, algebraMap_smul] at h
+  exact h
 
-/-- `integerNormalization g` normalizes `g` to have integer coefficients
+/-- `integerNormalization p` normalizes `p` to have integer coefficients
 by clearing the denominators -/
 noncomputable def integerNormalization (p : S[X]) : R[X] :=
-  (Classical.choose_spec <| exists_integer_multiple (Submonoid.map C M) p).choose
+  (exists_integer_polynomial_multiple M p).choose_spec.choose
 
-theorem integerNormalization_map_to_map (p : S[X]) :
-    ∃ b : M, (integerNormalization M p).map (algebraMap R S) = (b : R) • p := by
-  let ⟨b, hb₁, hb₂⟩ := (Classical.choose <| exists_integer_multiple (Submonoid.map C M) p).2
-  use ⟨b, hb₁⟩
-  conv_lhs => rw [← Polynomial.coe_mapRingHom, ← Polynomial.algebraMap_def]
-  conv_rhs => rw [← IsScalarTower.algebraMap_smul (A := R[X]), ← Polynomial.C_eq_algebraMap, hb₂]
-  exact (Classical.choose_spec <| exists_integer_multiple (Submonoid.map C M) p).choose_spec
+theorem integerNormalization_spec (p : S[X]) :
+    ∃ b : M, (integerNormalization M p).map (algebraMap R S) = (b : R) • p :=
+  ⟨(exists_integer_polynomial_multiple M p).choose,
+  (exists_integer_polynomial_multiple M p).choose_spec.choose_spec⟩
 
 variable {R' : Type*} [CommRing R']
 
 theorem integerNormalization_eval₂_eq_zero (g : S →+* R') (p : S[X]) {x : R'}
     (hx : eval₂ g x p = 0) : eval₂ (g.comp (algebraMap R S)) x (integerNormalization M p) = 0 :=
-  let ⟨b, hb⟩ := integerNormalization_map_to_map M p
+  let ⟨b, hb⟩ := integerNormalization_spec M p
   _root_.trans (eval₂_map (algebraMap R S) g x).symm
     (by rw [hb, ← IsScalarTower.algebraMap_smul S (b : R) p, eval₂_smul, hx, mul_zero])
 
@@ -76,7 +79,7 @@ variable [CommRing C]
 
 theorem integerNormalization_eq_zero_iff {p : K[X]} :
     integerNormalization (nonZeroDivisors A) p = 0 ↔ p = 0 := by
-  let ⟨_, hb⟩ := integerNormalization_map_to_map (nonZeroDivisors A) p
+  let ⟨_, hb⟩ := integerNormalization_spec (nonZeroDivisors A) p
   rw [← _root_.map_eq_zero_iff (mapRingHom _)
     (map_injective _ (FaithfulSMul.algebraMap_injective A K)), coe_mapRingHom, hb]
   simp
