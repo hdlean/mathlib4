@@ -5,11 +5,7 @@ Authors: Kenny Lau, Mario Carneiro, Johan Commelin, Amelia Livingston, Anne Baan
 -/
 module
 
-public import Mathlib.Algebra.GroupWithZero.NonZeroDivisors
-public import Mathlib.Algebra.Polynomial.Lifts
 public import Mathlib.RingTheory.Algebraic.Integral
-public import Mathlib.RingTheory.IntegralClosure.Algebra.Basic
-public import Mathlib.RingTheory.Localization.FractionRing
 public import Mathlib.RingTheory.Localization.Algebra
 
 /-!
@@ -40,59 +36,20 @@ open Polynomial
 
 variable [IsLocalization M S]
 
-attribute [local instance] Polynomial.isLocalization
-
-open scoped Classical in
-/-- `coeffIntegerNormalization p` gives the coefficients of the polynomial
-`integerNormalization p` -/
-noncomputable def coeffIntegerNormalization (p : S[X]) (i : ℕ) : R :=
-  if hi : i ∈ p.support then
-    Classical.choose
-      (Classical.choose_spec (exist_integer_multiples_of_finset M (p.support.image p.coeff))
-        (p.coeff i) (Finset.mem_image.mpr ⟨i, hi, rfl⟩))
-  else 0
-
-theorem coeffIntegerNormalization_of_coeff_zero (p : S[X]) (i : ℕ) (h : coeff p i = 0) :
-    coeffIntegerNormalization M p i = 0 := by
-  simp only [coeffIntegerNormalization, h, mem_support_iff, not_true, Ne,
-    dif_neg, not_false_iff]
-
-theorem coeffIntegerNormalization_mem_support (p : S[X]) (i : ℕ)
-    (h : coeffIntegerNormalization M p i ≠ 0) : i ∈ p.support := by
-  contrapose h
-  rw [coeffIntegerNormalization, dif_neg h]
+attribute [local instance] Polynomial.algebra Polynomial.isLocalization
 
 /-- `integerNormalization g` normalizes `g` to have integer coefficients
 by clearing the denominators -/
 noncomputable def integerNormalization (p : S[X]) : R[X] :=
-  ∑ i ∈ p.support, monomial i (coeffIntegerNormalization M p i)
-
-@[simp]
-theorem integerNormalization_coeff (p : S[X]) (i : ℕ) :
-    (integerNormalization M p).coeff i = coeffIntegerNormalization M p i := by
-  simp +contextual [integerNormalization, coeff_monomial,
-    coeffIntegerNormalization_of_coeff_zero]
-
-theorem integerNormalization_spec (p : S[X]) :
-    ∃ b : M, ∀ i, algebraMap R S ((integerNormalization M p).coeff i) = (b : R) • p.coeff i := by
-  classical
-  use Classical.choose (exist_integer_multiples_of_finset M (p.support.image p.coeff))
-  intro i
-  rw [integerNormalization_coeff, coeffIntegerNormalization]
-  split_ifs with hi
-  · exact
-      Classical.choose_spec
-        (Classical.choose_spec (exist_integer_multiples_of_finset M (p.support.image p.coeff))
-          (p.coeff i) (Finset.mem_image.mpr ⟨i, hi, rfl⟩))
-  · rw [map_zero, notMem_support_iff.mp hi, smul_zero]
+  (Classical.choose_spec <| exists_integer_multiple (Submonoid.map C M) p).choose
 
 theorem integerNormalization_map_to_map (p : S[X]) :
-    ∃ b : M, (integerNormalization M p).map (algebraMap R S) = (b : R) • p :=
-  let ⟨b, hb⟩ := integerNormalization_spec M p
-  ⟨b,
-    Polynomial.ext fun i => by
-      rw [coeff_map, coeff_smul]
-      exact hb i⟩
+    ∃ b : M, (integerNormalization M p).map (algebraMap R S) = (b : R) • p := by
+  let ⟨b, hb₁, hb₂⟩ := (Classical.choose <| exists_integer_multiple (Submonoid.map C M) p).2
+  use ⟨b, hb₁⟩
+  conv_lhs => rw [← Polynomial.coe_mapRingHom, ← Polynomial.algebraMap_def]
+  conv_rhs => rw [← IsScalarTower.algebraMap_smul (A := R[X]), ← Polynomial.C_eq_algebraMap, hb₂]
+  exact (Classical.choose_spec <| exists_integer_multiple (Submonoid.map C M) p).choose_spec
 
 variable {R' : Type*} [CommRing R']
 
@@ -119,16 +76,10 @@ variable [CommRing C]
 
 theorem integerNormalization_eq_zero_iff {p : K[X]} :
     integerNormalization (nonZeroDivisors A) p = 0 ↔ p = 0 := by
-  refine Polynomial.ext_iff.trans (Polynomial.ext_iff.trans ?_).symm
-  obtain ⟨⟨b, nonzero⟩, hb⟩ := integerNormalization_spec (nonZeroDivisors A) p
-  constructor <;> intro h i
-  · rw [coeff_zero, ← to_map_eq_zero_iff (K := K), hb i, h i, coeff_zero, smul_zero]
-  · have hi := h i
-    rw [Polynomial.coeff_zero, ← @to_map_eq_zero_iff A _ K, hb i, Algebra.smul_def] at hi
-    apply Or.resolve_left (eq_zero_or_eq_zero_of_mul_eq_zero hi)
-    intro h
-    apply mem_nonZeroDivisors_iff_ne_zero.mp nonzero
-    exact to_map_eq_zero_iff.mp h
+  let ⟨_, hb⟩ := integerNormalization_map_to_map (nonZeroDivisors A) p
+  rw [← _root_.map_eq_zero_iff (mapRingHom _)
+    (map_injective _ (FaithfulSMul.algebraMap_injective A K)), coe_mapRingHom, hb]
+  simp
 
 variable (A K C)
 
