@@ -73,7 +73,7 @@ by clearing the denominators -/
 noncomputable def integerNormalization (p : S[X]) : R[X] :=
   (exists_integer_polynomial_multiple M p).choose_spec.choose
 
-@[simp, deprecated "deprecated without replacement" (since := "2026-02-05")]
+@[nolint synTaut, deprecated "deprecated without replacement" (since := "2026-02-05")]
 theorem integerNormalization_coeff (p : S[X]) (i : ℕ) :
     (integerNormalization M p).coeff i = (integerNormalization M p).coeff i :=
   rfl
