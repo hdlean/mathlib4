@@ -47,12 +47,14 @@ noncomputable def coeffIntegerNormalization (p : S[X]) (i : ℕ) : R :=
         (p.coeff i) (Finset.mem_image.mpr ⟨i, hi, rfl⟩))
   else 0
 
+set_option linter.deprecated false in
 @[deprecated "deprecated without replacement" (since := "2026-02-05")]
 theorem coeffIntegerNormalization_of_coeff_zero (p : S[X]) (i : ℕ) (h : coeff p i = 0) :
     coeffIntegerNormalization M p i = 0 := by
   simp only [coeffIntegerNormalization, h, mem_support_iff, not_true, Ne,
     dif_neg, not_false_iff]
 
+set_option linter.deprecated false in
 @[deprecated "deprecated without replacement" (since := "2026-02-05")]
 theorem coeffIntegerNormalization_mem_support (p : S[X]) (i : ℕ)
     (h : coeffIntegerNormalization M p i ≠ 0) : i ∈ p.support := by
