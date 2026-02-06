@@ -236,46 +236,49 @@ theorem IntermediateField.isAlgebraic_X : IsAlgebraic E (X : RatFunc K) := by
   exact IsAlgebraic.tower_top_of_subalgebra_le (adjoin_simple_le_iff.mpr hf₁) <|
     f.isAlgebraic_adjoin_simple_X (by rintro ⟨c, rfl⟩; exact hf₂ ⟨c, rfl⟩)
 
+
+open Polynomial
+
+open scoped Polynomial.Bivariate
+
 theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
+  classical
   let ψ : E[X] := minpoly E (X : RatFunc K)
   obtain ⟨i, hi⟩ : ∃ i, ψ.coeff i ∉ (algebraMap K E).range := by
     by_contra! h
-    obtain ⟨ψ', hψ'⟩ := (Polynomial.mem_map_range _).mpr h
+    obtain ⟨ψ', hψ'⟩ := (mem_map_range _).mpr h
     refine transcendental_X (K := K) ⟨ψ', ?_, ?_⟩
     · rintro rfl
-      rw [Polynomial.coe_mapRingHom, Polynomial.map_zero, eq_comm] at hψ'
+      rw [coe_mapRingHom, Polynomial.map_zero, eq_comm] at hψ'
       exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral hψ'
-    · replace hψ' := congrArg (Polynomial.aeval (X : RatFunc K)) hψ'
-      rw [Polynomial.coe_mapRingHom, Polynomial.aeval_map_algebraMap, aeval_X_left_eq_algebraMap,
-        minpoly.aeval, map_eq_zero_iff _ (algebraMap_injective K)] at hψ'
+    · replace hψ' := congrArg (aeval (X : RatFunc K)) hψ'
+      rw [coe_mapRingHom, aeval_map_algebraMap, aeval_X_left_eq_algebraMap, minpoly.aeval,
+        map_eq_zero_iff _ (algebraMap_injective K)] at hψ'
       rw [aeval_X_left_eq_algebraMap, FaithfulSMul.algebraMap_eq_zero_iff]
       exact hψ'
   let u : RatFunc K := ψ.coeff i
-  use u
+  have hu : ¬ ∃ c, u = C c := fun ⟨c, hc⟩ ↦ hi ⟨c, Subtype.ext (by simpa using hc.symm)⟩
   have adjoin_u_le : K⟮u⟯ ≤ E := adjoin_simple_le_iff.mpr (Subtype.property _)
+  have n_pos : 0 < Module.finrank E (RatFunc K) := by
+    rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq]
+    rw [adjoin.finrank (IntermediateField.isAlgebraic_X E hE).isIntegral]
+    apply minpoly.natDegree_pos (IntermediateField.isAlgebraic_X E hE).isIntegral
+  refine ⟨u, le_antisymm (relfinrank_eq_one_iff.mp ?_) adjoin_u_le⟩
+  suffices Module.finrank E (RatFunc K) = Module.finrank K⟮u⟯ (RatFunc K) from
+    (mul_eq_right₀ (by grind)).mp (this ▸ relfinrank_mul_finrank_top adjoin_u_le)
   obtain ⟨q, hq⟩ : ψ ∣ (minpolyX u).mapAlgHom (IntermediateField.inclusion adjoin_u_le) := by
     apply minpoly.dvd
-    rw [Polynomial.coe_mapAlgHom, ← Polynomial.aeval_eq_aeval_map (by ext; simp)]
+    rw [coe_mapAlgHom, ← aeval_eq_aeval_map (by ext; simp)]
     exact u.minpolyX_aeval_X
+  let Φ : K[X][Y] := IsLocalization.integerNormalization (nonZeroDivisors K[X])
+    (ψ.map (algebraMap E (RatFunc K))) |>.primPart
+  let θ : K[X][Y] :=
+    Polynomial.C u.num * u.denom.map Polynomial.C - Polynomial.C u.denom * u.num.map Polynomial.C
+  have swap_θ : Polynomial.Bivariate.swap θ = -θ := by
+    unfold θ
+    rw [map_sub, map_mul, map_mul, Bivariate.swap_C, Bivariate.swap_map_C, Bivariate.swap_C,
+      Bivariate.swap_map_C]
+    ring
+  obtain ⟨c, hc⟩ := IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X]) (ψ.map
+  (algebraMap E (RatFunc K)))
   sorry
-
-section experiments
-
-variable {R K : Type*} [CommRing R] [IsDomain R] [NormalizedGCDMonoid R] [Field K]
-  [Algebra R K] [IsFractionRing R K]
-
-example (f : K[X]) : ∃ (g : R[X]) (b : R), Polynomial.map (algebraMap R K) g = b • f ∧
-    g.IsPrimitive := by
-  let g := IsLocalization.integerNormalization (nonZeroDivisors R) f
-  let g' := g.primPart
-  use g
-  obtain ⟨b, hb⟩ := IsLocalization.integerNormalization_map_to_map (nonZeroDivisors R) f
-  use b
-  refine ⟨hb, ?_⟩
-  sorry
-
-attribute[instance] Polynomial.isLocalization
-
-#synth @IsLocalization K[X][X] Polynomial.commSemiring (Submonoid.map Polynomial.C (nonZeroDivisors K[X])) (RatFunc K)[X] Polynomial.commSemiring (Polynomial.mapRingHom (algebraMap K[X] (RatFunc K))).toAlgebra
-
-end experiments
