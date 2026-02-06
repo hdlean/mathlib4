@@ -11,15 +11,16 @@ public import Mathlib.Algebra.Polynomial.Bivariate
 /-!
 # Lüroth's theorem
 
-The goal of this file is to prove Lüroth's theorem, which says that for every field K,
-every intermediate field between K and the rational function field K(X) is either K or
-isomorphic to K(X) as an K-algebra. The proof depends on the following lemma on degrees of
-rational functions:
+The goal of this file is to prove Lüroth's theorem, which says that for every
+field `K`, every intermediate field between `K` and the rational function field
+`K(X)` is either `K` or isomorphic to `K(X)` as an K-algebra. The proof depends
+on the following lemma on degrees of rational functions:
 
-Let `f` be a rational function, i.e. an element in the field `K(X)` (`RatFunc K`). Let `p` be its
-numerator and `q` its denominator. Then the degree of the field extension `K(X)/K(f)` equals the
-maximum of the degrees of `p` and `q`. Since `finrank` is defined to be zero when the extension
-is infinite, this holds even when `f` is constant.
+Let `f` be a rational function, i.e. an element in the field `K(X)` (`RatFunc
+K`). Let `p` be its numerator and `q` its denominator. Then the degree of the
+field extension `K(X)/K(f)` equals the maximum of the degrees of `p` and `q`,
+see `finrank_eq_max_natDegree`. Since `finrank` is defined to be zero when the
+extension is infinite, this holds even when `f` is constant.
 
 References:
 
