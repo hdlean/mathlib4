@@ -236,10 +236,10 @@ theorem IntermediateField.isAlgebraic_X : IsAlgebraic E (X : RatFunc K) := by
   exact IsAlgebraic.tower_top_of_subalgebra_le (adjoin_simple_le_iff.mpr hf₁) <|
     f.isAlgebraic_adjoin_simple_X (by rintro ⟨c, rfl⟩; exact hf₂ ⟨c, rfl⟩)
 
-
 open Polynomial
 
 open scoped Polynomial.Bivariate
+
 
 theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
   classical
@@ -259,6 +259,7 @@ theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
   let u : RatFunc K := ψ.coeff i
   have hu : ¬ ∃ c, u = C c := fun ⟨c, hc⟩ ↦ hi ⟨c, Subtype.ext (by simpa using hc.symm)⟩
   have adjoin_u_le : K⟮u⟯ ≤ E := adjoin_simple_le_iff.mpr (Subtype.property _)
+  letI : Algebra K⟮u⟯ E := (IntermediateField.inclusion adjoin_u_le).toAlgebra
   have n_pos : 0 < Module.finrank E (RatFunc K) := by
     rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq]
     rw [adjoin.finrank (IntermediateField.isAlgebraic_X E hE).isIntegral]
@@ -266,19 +267,101 @@ theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
   refine ⟨u, le_antisymm (relfinrank_eq_one_iff.mp ?_) adjoin_u_le⟩
   suffices Module.finrank E (RatFunc K) = Module.finrank K⟮u⟯ (RatFunc K) from
     (mul_eq_right₀ (by grind)).mp (this ▸ relfinrank_mul_finrank_top adjoin_u_le)
-  obtain ⟨q, hq⟩ : ψ ∣ (minpolyX u).mapAlgHom (IntermediateField.inclusion adjoin_u_le) := by
+
+  let Φ' : K[X][Y] := IsLocalization.integerNormalization (nonZeroDivisors K[X])
+    (ψ.map (algebraMap E (RatFunc K)))
+  let Φ : K[X][Y] := Φ'.primPart
+  obtain ⟨⟨b, hb₁⟩, (hb₂ : Polynomial.map _ Φ' = _)⟩ :=
+    IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X])
+    (ψ.map (algebraMap E (RatFunc K)))
+  let c : RatFunc K := (algebraMap K[X] (RatFunc K) Φ'.content)⁻¹ * algebraMap K[X] (RatFunc K) b
+  have c_ne_zero : c ≠ 0 := by
+    rw [mul_ne_zero_iff]
+    constructor
+    · apply inv_ne_zero
+      rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff, content_eq_zero_iff,
+        IsFractionRing.integerNormalization_eq_zero_iff, Polynomial.map_eq_zero]
+      exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral
+    · rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff]
+      exact nonZeroDivisors.ne_zero hb₁
+  have hcψ : Polynomial.C c * ψ.map (algebraMap E (RatFunc K)) = Φ.map (algebraMap K[X] (RatFunc K)) := by
+    rw [map_mul, mul_assoc]
+    conv =>
+      lhs; rhs
+      rw [← Polynomial.smul_eq_C_mul, algebraMap_smul, ← hb₂, eq_C_content_mul_primPart Φ']
+    rw [Polynomial.map_mul, map_C, ← mul_assoc, ← C_mul, inv_mul_cancel₀,  map_one, one_mul]
+    · rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff, content_eq_zero_iff,
+        IsFractionRing.integerNormalization_eq_zero_iff, Polynomial.map_eq_zero]
+      exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral
+
+  obtain ⟨q, hq⟩ : ψ ∣ (minpolyX u).map (algebraMap K⟮u⟯ E) := by
     apply minpoly.dvd
-    rw [coe_mapAlgHom, ← aeval_eq_aeval_map (by ext; simp)]
+    rw [← aeval_eq_aeval_map rfl]
     exact u.minpolyX_aeval_X
-  let Φ : K[X][Y] := IsLocalization.integerNormalization (nonZeroDivisors K[X])
-    (ψ.map (algebraMap E (RatFunc K))) |>.primPart
-  let θ : K[X][Y] :=
-    Polynomial.C u.num * u.denom.map Polynomial.C - Polynomial.C u.denom * u.num.map Polynomial.C
+
+  let Q : (RatFunc K)[X] := Polynomial.C ((algebraMap K[X] (RatFunc K) u.denom) / c) *
+    q.map (algebraMap E (RatFunc K))
+  let θ : K[X][Y] := Polynomial.C u.denom * u.num.map Polynomial.C -
+    Polynomial.C u.num * u.denom.map Polynomial.C
   have swap_θ : Polynomial.Bivariate.swap θ = -θ := by
     unfold θ
     rw [map_sub, map_mul, map_mul, Bivariate.swap_C, Bivariate.swap_map_C, Bivariate.swap_C,
       Bivariate.swap_map_C]
     ring
-  obtain ⟨c, hc⟩ := IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X]) (ψ.map
-  (algebraMap E (RatFunc K)))
+  have hQΦ : Q * Φ.map (algebraMap K[X] (RatFunc K)) = θ.map (algebraMap K[X] (RatFunc K)) := by
+    rw [← hcψ, mul_assoc]
+    conv =>
+      lhs
+      rhs
+      rw [← mul_assoc]
+      lhs
+      rw [mul_comm]
+    rw [← mul_assoc, ← mul_assoc, ← C_mul, div_mul_cancel₀ _ c_ne_zero, mul_assoc,
+      ← Polynomial.map_mul, mul_comm q ψ, ← hq]
+    rw [Polynomial.map_map, Polynomial.map_sub, Polynomial.map_mul, map_C]
+    simp only [RingHom.coe_comp, Function.comp_apply, IntermediateField.algebraMap_apply]
+    rw [Polynomial.map_map, Polynomial.map_map] 
+    rw [mul_sub, ← mul_assoc, ← map_mul]
+    rw [(IntermediateField.inclusion adjoin_u_le).algebraMap_toAlgebra]
+    rw [AlgHom.toRingHom_eq_coe, RingHom.coe_coe, coe_inclusion, AdjoinSimple.coe_gen]
+    conv => lhs; rhs; lhs; rhs; rhs; rw [← num_div_denom u]
+    rw [mul_div_cancel₀ _ ((FaithfulSMul.algebraMap_eq_zero_iff _ _).not.mpr u.denom_ne_zero)]
+    rw [Polynomial.map_sub, Polynomial.map_mul, Polynomial.map_mul, map_C, map_C]
+    rw [Polynomial.map_map, Polynomial.map_map]
+    rfl
+
   sorry
+
+end RatFunc
+
+section
+
+open Polynomial IsLocalization
+
+variable {R K : Type*} [Nontrivial R] [CommRing R] [NormalizedGCDMonoid R] [Field K] [Algebra R K] [IsFractionRing R K]
+
+attribute [local instance] Polynomial.algebra Polynomial.isLocalization
+
+lemma my_lemma {f : R[X]} (hf : IsPrimitive f) (g : K[X])
+    (hfg : IsInteger R[X] (g * f.map (algebraMap R K))) : IsInteger R[X] g := by
+  obtain ⟨k, hk⟩ := hfg
+  let g' := integerNormalization (nonZeroDivisors R) g
+  simp only [algebraMap_def, coe_mapRingHom] at hk
+  obtain ⟨⟨b, hb₁⟩, (hb₂ : Polynomial.map _ g' = _)⟩ := integerNormalization_map_to_map (nonZeroDivisors R) g
+  have : g' * f = b • k := by
+    apply Polynomial.map_injective (algebraMap R K) (FaithfulSMul.algebraMap_injective R K)
+    rw [Polynomial.map_smul, algebraMap_smul, hk]
+    rw [← smul_mul_assoc, ← hb₂, Polynomial.map_mul]
+  use C k.content * g'.primPart
+  rw [← smul_right_inj (nonZeroDivisors.ne_zero hb₁), ← hb₂]
+  nth_rw 2 [eq_C_content_mul_primPart g']
+  simp only [algebraMap_def, coe_mapRingHom, Polynomial.map_mul, map_C]
+  rw [← smul_mul_assoc]
+  rw [← algebraMap_smul K b, smul_eq_C_mul, ← C_mul]
+  congr
+  rw [← map_mul]
+  sorry
+
+
+end
+
