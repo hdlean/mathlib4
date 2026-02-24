@@ -233,7 +233,7 @@ theorem Bivariate.swap_X : swap (R := R) (C X) = Y := by simp
 
 theorem Bivariate.swap_Y : swap (R := R) Y = (C X) := by simp
 
-theorem Bivariate.swap_CC (r : R) : swap (C (C r)) = C (C r) := by simp
+theorem Bivariate.swap_C_C (r : R) : swap (C (C r)) = C (C r) := by simp
 
 theorem Bivariate.swap_C (f : R[X]) : swap (C f) = f.map C := by
   simpa [← algebraMap_eq] using aeval_X_left_eq_map f
@@ -242,7 +242,7 @@ theorem Bivariate.swap_map_C (f : R[X]) : swap (f.map C) = C f := by
   induction f using Polynomial.induction_on' with
   | add => aesop
   | monomial n a => rw [map_monomial, ← C_mul_X_pow_eq_monomial, ← C_mul_X_pow_eq_monomial,
-    map_mul, map_pow, swap_Y, C_mul, C_pow, swap_CC]
+    map_mul, map_pow, swap_Y, C_mul, C_pow, Bivariate.swap_C_C]
 
 theorem Bivariate.swap_monomial_monomial (n m : ℕ) (r : R) :
     swap (monomial n (monomial m r)) = (monomial m (monomial n r)) := by
