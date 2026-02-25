@@ -244,6 +244,10 @@ theorem Bivariate.swap_map_C (f : R[X]) : swap (f.map C) = C f := by
   | monomial n a => rw [map_monomial, ← C_mul_X_pow_eq_monomial, ← C_mul_X_pow_eq_monomial,
     map_mul, map_pow, swap_Y, C_mul, C_pow, Bivariate.swap_C_C]
 
+theorem Bivariate.swap_monomial (n : ℕ) (f : R[X]) :
+    swap (monomial n f) = f.map C * C (X ^ n) := by
+  simp [← C_mul_X_pow_eq_monomial]; rfl
+
 theorem Bivariate.swap_monomial_monomial (n m : ℕ) (r : R) :
     swap (monomial n (monomial m r)) = (monomial m (monomial n r)) := by
   simp [← C_mul_X_pow_eq_monomial]; ac_rfl

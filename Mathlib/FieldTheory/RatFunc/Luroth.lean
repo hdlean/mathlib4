@@ -265,10 +265,9 @@ theorem finrank_eq_max_natDegree :
     hf ((minpolyX_eq_zero_iff f).mp H), natDegree_minpolyX]
 
 
-variable (E : IntermediateField K (RatFunc K)) (hE : E ≠ ⊥)
-include hE
+variable (E : IntermediateField K (RatFunc K))
 
-theorem IntermediateField.isAlgebraic_X : IsAlgebraic E (X : RatFunc K) := by
+theorem IntermediateField.isAlgebraic_X (hE : E ≠ ⊥) : IsAlgebraic E (X : RatFunc K) := by
   rw [ne_eq, ← le_bot_iff, SetLike.not_le_iff_exists] at hE
   obtain ⟨f, hf₁, hf₂⟩ := hE
   exact IsAlgebraic.tower_top_of_subalgebra_le (adjoin_simple_le_iff.mpr hf₁) <|
@@ -278,9 +277,11 @@ open Polynomial
 
 open scoped Polynomial.Bivariate
 
-
-theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
+/-- Lüroth's theorem. -/
+theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
   classical
+  by_cases hE : E = ⊥
+  · exact ⟨0, (hE ▸ adjoin_zero).symm⟩
   let ψ : E[X] := minpoly E (X : RatFunc K)
   obtain ⟨i, hi⟩ : ∃ i, ψ.coeff i ∉ (algebraMap K E).range := by
     by_contra! h
@@ -289,7 +290,7 @@ theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
     · rintro rfl
       rw [coe_mapRingHom, Polynomial.map_zero, eq_comm] at hψ'
       exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral hψ'
-    · replace hψ' := congrArg (aeval (X : RatFunc K)) hψ'
+    · replace hψ' := congr(aeval (X : RatFunc K) $(hψ'))
       rw [coe_mapRingHom, aeval_map_algebraMap, aeval_X_left_eq_algebraMap, minpoly.aeval,
         map_eq_zero_iff _ (algebraMap_injective K)] at hψ'
       rw [aeval_X_left_eq_algebraMap, FaithfulSMul.algebraMap_eq_zero_iff]
@@ -392,14 +393,24 @@ theorem luroth : ∃ u : RatFunc K, E = K⟮u⟯ := by
   rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq]
   rw [adjoin.finrank (IntermediateField.isAlgebraic_X E hE).isIntegral]
   have := congr($(hcψ).natDegree)
-  rw [Polynomial.natDegree_mul
+  rw [Polynomial.natDegree_mul 
        (Polynomial.C_ne_zero.mpr c_ne_zero)
        (Polynomial.map_ne_zero <| minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral)] at this
   simp only [natDegree_C, natDegree_map, zero_add] at this
   rw [this]
   rw [Polynomial.natDegree_map_eq_of_injective (algebraMap_injective K)]
   rw [finrank_eq_max_natDegree]
-
+  
+  have crucial : max u.num.natDegree u.denom.natDegree ≤ (Bivariate.swap Φ).natDegree := by
+    apply le_natDegree_of_ne_zero
+    rw [← sum_monomial_eq Φ, sum_def]
+    rw [map_sum, finset_sum_coeff]
+    simp_rw [Bivariate.swap_monomial]
+    conv => lhs; rhs; enter [x]; rw [mul_comm, ← Polynomial.smul_eq_C_mul, coeff_smul, coeff_map]
+    -- this looks true? Use that X^i are linearly independent or something and only
+    -- consider the i-th term
+    sorry
+  
   sorry
 
 end RatFunc
