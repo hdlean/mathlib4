@@ -277,6 +277,7 @@ open Polynomial
 
 open scoped Polynomial.Bivariate
 
+#check LinearIndependent
 /-- Lüroth's theorem. -/
 theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
   classical
@@ -304,7 +305,9 @@ theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
     rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq]
     rw [adjoin.finrank (IntermediateField.isAlgebraic_X E hE).isIntegral]
     apply minpoly.natDegree_pos (IntermediateField.isAlgebraic_X E hE).isIntegral
-  refine ⟨u, le_antisymm (relfinrank_eq_one_iff.mp ?_) adjoin_u_le⟩
+
+  use u
+  refine le_antisymm (relfinrank_eq_one_iff.mp ?_) adjoin_u_le
 
   suffices Module.finrank E (RatFunc K) = Module.finrank K⟮u⟯ (RatFunc K) from
     (mul_eq_right₀ (by lia)).mp (this ▸ relfinrank_mul_finrank_top adjoin_u_le)
@@ -388,7 +391,7 @@ theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
     exact ⟨_, rfl⟩
   rw [← hQ', algebraMap_def, coe_mapRingHom, ← Polynomial.map_mul] at hQΦ
   replace hQΦ := Polynomial.map_injective _ (algebraMap_injective K) hQΦ
-
+  
   -- massage the goal to say Φ.natDegree = _
   rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq]
   rw [adjoin.finrank (IntermediateField.isAlgebraic_X E hE).isIntegral]
@@ -401,15 +404,27 @@ theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
   rw [Polynomial.natDegree_map_eq_of_injective (algebraMap_injective K)]
   rw [finrank_eq_max_natDegree]
   
+  have degΦ₁ : (Φ.coeff i).coeff u.num.natDegree ≠ 0 := sorry
+  have degΦ₂ : (leadingCoeff Φ).natDegree ≥ u.denom.natDegree := sorry
+
   have crucial : max u.num.natDegree u.denom.natDegree ≤ (Bivariate.swap Φ).natDegree := by
-    apply le_natDegree_of_ne_zero
-    rw [← sum_monomial_eq Φ, sum_def]
-    rw [map_sum, finset_sum_coeff]
-    simp_rw [Bivariate.swap_monomial]
-    conv => lhs; rhs; enter [x]; rw [mul_comm, ← Polynomial.smul_eq_C_mul, coeff_smul, coeff_map]
-    -- this looks true? Use that X^i are linearly independent or something and only
-    -- consider the i-th term
-    sorry
+    apply max_le
+    · apply le_natDegree_of_ne_zero
+      rw [← sum_monomial_eq Φ, sum_def]
+      rw [map_sum, finset_sum_coeff]
+      simp_rw [Bivariate.swap_monomial]
+      conv => lhs; rhs; enter [x]; rw [mul_comm, ← Polynomial.smul_eq_C_mul, coeff_smul, coeff_map]
+      -- this looks true? Use that X^i are linearly independent or something and only
+      -- consider the i-th term
+      simp
+      simp_rw [← Polynomial.smul_eq_C_mul]
+      intro H
+      have foo : LinearIndependent K (fun i ↦ (Polynomial.X : K[X]) ^ i) := sorry
+      have bar := linearIndependent_iff'.mp foo Φ.support (fun i => (Φ.coeff i).coeff u.num.natDegree) H
+      have wow := congr($(hcψ).coeff i)
+      rw [← Polynomial.smul_eq_C_mul, coeff_smul, coeff_map, coeff_map] at wow
+      sorry
+    · sorry
   
   sorry
 
