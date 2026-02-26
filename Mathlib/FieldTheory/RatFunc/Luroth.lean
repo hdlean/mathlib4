@@ -5,9 +5,11 @@ Authors: Miriam Philipp, Justus Springer, Junyan Xu
 -/
 module
 
+public import Mathlib.LinearAlgebra.Basis.Basic
 public import Mathlib.FieldTheory.RatFunc.AsPolynomial
 public import Mathlib.FieldTheory.Relrank
 public import Mathlib.Algebra.Polynomial.Bivariate
+public import Mathlib.Algebra.Polynomial.Basis
 public import Mathlib.RingTheory.Localization.Algebra
 
 /-!
@@ -34,6 +36,8 @@ References:
 @[expose] public section
 
 namespace Polynomial
+
+section
 
 open IsLocalization
 
@@ -68,6 +72,35 @@ lemma isInteger_mul_iff_right {f : R[X]} (hf : IsPrimitive f) (g : K[X]) :
     IsInteger R[X] (f.map (algebraMap R K) * g) ↔ IsInteger R[X] g := by
   convert isInteger_mul_iff_left hf g using 2
   rw [mul_comm]
+
+end
+
+section
+
+variable {A R : Type*} [CommRing R] [CommRing A] [Algebra R A]
+variable {ι : Type*} {s : Finset ι} {f : ι → R[X]} {v : ι → A}
+
+lemma natDegree_sum_eq_of_linearIndepOn (h : LinearIndepOn R v s) :
+    (∑ i ∈ s, v i • (f i).map (algebraMap R A)).natDegree = s.sup (fun i ↦ (f i).natDegree) := by
+  apply le_antisymm
+  · apply natDegree_sum_le_of_forall_le
+    intro i hi
+    exact (natDegree_smul_le _ _).trans <| natDegree_map_le.trans <|
+      Finset.le_sup (f := fun i ↦ (f i).natDegree) hi
+  · apply Finset.sup_le
+    intro i hi
+    by_cases hf : f i = 0
+    · rw [hf, natDegree_zero]
+      exact Nat.zero_le _
+    apply le_natDegree_of_ne_zero
+    rw [finset_sum_coeff]
+    conv =>
+      lhs; rhs; enter [x];
+      rw [coeff_smul, smul_eq_mul, coeff_map, mul_comm, ← Algebra.smul_def]
+    intro H
+    exact hf (leadingCoeff_eq_zero.mp (linearIndepOn_finset_iff.mp h _ H i hi))
+
+end
 
 end Polynomial
 
@@ -277,9 +310,10 @@ open Polynomial
 
 open scoped Polynomial.Bivariate
 
-#check LinearIndependent
+
+set_option backward.isDefEq.respectTransparency false in
 /-- Lüroth's theorem. -/
-theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
+theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
   classical
   by_cases hE : E = ⊥
   · exact ⟨0, (hE ▸ adjoin_zero).symm⟩
@@ -338,6 +372,28 @@ theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
     · rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff, content_eq_zero_iff,
         IsFractionRing.integerNormalization_eq_zero_iff, Polynomial.map_eq_zero]
       exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral
+  have Φ_coeff_n : algebraMap K[X] (RatFunc K) (Φ.coeff ψ.natDegree) = c := by
+    have := congr($(hcψ).coeff ψ.natDegree)
+    rw [coeff_C_mul, coeff_map, coeff_map, coeff_natDegree, IntermediateField.algebraMap_apply,
+      minpoly.monic (IntermediateField.isAlgebraic_X E hE).isIntegral, OneMemClass.coe_one,
+      mul_one] at this
+    exact this.symm
+  have c_denom : c.denom = 1 := by
+    rw [← Φ_coeff_n]
+    exact denom_algebraMap _
+  have Φ_coeff_n' : Φ.coeff ψ.natDegree = c.num := by
+    apply algebraMap_injective
+    rw [Φ_coeff_n]
+    conv_lhs => rw [← num_div_denom c, c_denom, map_one, div_one]
+  have Φ_coeff_i : algebraMap K[X] (RatFunc K) (Φ.coeff i) = algebraMap K[X] (RatFunc K) c.num * u := by
+    have := congr($(hcψ).coeff i)
+    rw [coeff_map, coeff_C_mul, coeff_map, IntermediateField.algebraMap_apply] at this
+    rw [← num_div_denom c, c_denom, map_one, div_one] at this
+    exact this.symm
+  have u_denom_dvd_c_num : u.denom ∣ c.num := by
+    rw [denom_dvd (num_ne_zero c_ne_zero)]
+    use Φ.coeff i
+    rw [Φ_coeff_i, mul_div_cancel_left₀ _ (algebraMap_ne_zero (num_ne_zero c_ne_zero))]
 
   -- Get Q
   obtain ⟨q, hq⟩ : ψ ∣ (minpolyX u).map (algebraMap K⟮u⟯ E) := by
@@ -404,28 +460,63 @@ theorem eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
   rw [Polynomial.natDegree_map_eq_of_injective (algebraMap_injective K)]
   rw [finrank_eq_max_natDegree]
   
-  have degΦ₁ : (Φ.coeff i).coeff u.num.natDegree ≠ 0 := sorry
-  have degΦ₂ : (leadingCoeff Φ).natDegree ≥ u.denom.natDegree := sorry
+  have degΦ₁ : u.num.natDegree ≤ (Φ.coeff i).natDegree := by
+    have := congr($(Φ_coeff_i) * algebraMap K[X] (RatFunc K) u.denom)
+    conv at this =>
+      rhs
+      lhs
+      rhs
+      rw [← num_div_denom u]
+    rw [mul_assoc] at this
+    rw [div_mul_cancel₀ _ (algebraMap_ne_zero u.denom_ne_zero)] at this
+    rw [← map_mul, ← map_mul] at this
+    replace this := congr($(algebraMap_injective K this).natDegree)
+    rw [natDegree_mul, natDegree_mul] at this
+    · rw [Nat.eq_sub_of_add_eq this, add_comm, Nat.add_sub_assoc]
+      simp only [ge_iff_le, le_add_iff_nonneg_right, zero_le]
+      exact natDegree_le_of_dvd u_denom_dvd_c_num (num_ne_zero c_ne_zero)
+    -- side goals from `natDegree_mul`
+    · exact num_ne_zero c_ne_zero
+    · exact num_ne_zero u_ne_zero
+    · intro H
+      replace H := congr(algebraMap K[X] (RatFunc K) $(H))
+      rw [Φ_coeff_i] at H
+      simp at H
+      exact Or.elim H c_ne_zero u_ne_zero
+    · exact u.denom_ne_zero
 
+  have degΦ₂ : u.denom.natDegree ≤ (Φ.coeff ψ.natDegree).natDegree := by
+    rw [Φ_coeff_n']
+    exact natDegree_le_of_dvd u_denom_dvd_c_num (num_ne_zero c_ne_zero)
+    
   have crucial : max u.num.natDegree u.denom.natDegree ≤ (Bivariate.swap Φ).natDegree := by
+    rw [← sum_monomial_eq Φ, sum_def, map_sum]
+    conv =>
+      rhs; rhs; rhs; enter [x];
+      rw [Bivariate.swap_monomial, mul_comm, ← Polynomial.smul_eq_C_mul]
+      rw [← monomial_one_right_eq_X_pow]
+      rhs;
+      rw [← Polynomial.algebraMap_eq]
+    rw [natDegree_sum_eq_of_linearIndepOn]
+    swap
+    · exact (basisMonomials K).linearIndepOn Φ.support --?
     apply max_le
-    · apply le_natDegree_of_ne_zero
-      rw [← sum_monomial_eq Φ, sum_def]
-      rw [map_sum, finset_sum_coeff]
-      simp_rw [Bivariate.swap_monomial]
-      conv => lhs; rhs; enter [x]; rw [mul_comm, ← Polynomial.smul_eq_C_mul, coeff_smul, coeff_map]
-      -- this looks true? Use that X^i are linearly independent or something and only
-      -- consider the i-th term
-      simp
-      simp_rw [← Polynomial.smul_eq_C_mul]
-      intro H
-      have foo : LinearIndependent K (fun i ↦ (Polynomial.X : K[X]) ^ i) := sorry
-      have bar := linearIndependent_iff'.mp foo Φ.support (fun i => (Φ.coeff i).coeff u.num.natDegree) H
-      have wow := congr($(hcψ).coeff i)
-      rw [← Polynomial.smul_eq_C_mul, coeff_smul, coeff_map, coeff_map] at wow
-      sorry
-    · sorry
+    · apply degΦ₁.trans
+      have : Φ.coeff i ≠ 0 := by
+        intro H
+        replace H := congr(algebraMap K[X] (RatFunc K) $(H))
+        rw [Φ_coeff_i] at H
+        simp at H
+        exact Or.elim H c_ne_zero u_ne_zero
+      exact Finset.le_sup (f := fun i ↦ (Φ.coeff i).natDegree) (mem_support_iff.mpr this)
+    · apply degΦ₂.trans
+      have : Φ.coeff ψ.natDegree ≠ 0 := by
+        rw [Φ_coeff_n']
+        exact num_ne_zero c_ne_zero
+      exact Finset.le_sup (f := fun i ↦ (Φ.coeff i).natDegree) (mem_support_iff.mpr this)
   
+  have swapQ'_deg : (Bivariate.swap Q').natDegree = 0 := by
+    sorry
   sorry
 
 end RatFunc
