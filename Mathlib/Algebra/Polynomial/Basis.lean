@@ -30,7 +30,6 @@ def basisMonomials : Basis ℕ R R[X] :=
   Basis.ofRepr (toFinsuppIsoLinear R)
 
 @[simp]
-theorem coe_basisMonomials : (basisMonomials R : ℕ → R[X]) = fun s => monomial s 1 :=
-  funext fun _ => ofFinsupp_single _ _
+theorem coe_basisMonomials : (basisMonomials R : ℕ → R[X]) = fun s => monomial s 1 := rfl
 
 end Polynomial
