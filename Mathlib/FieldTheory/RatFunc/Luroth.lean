@@ -312,6 +312,7 @@ open scoped Polynomial.Bivariate
 
 
 set_option backward.isDefEq.respectTransparency false in
+
 /-- Lüroth's theorem. -/
 theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
   classical
@@ -574,22 +575,48 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
     exact (ne_of_not_ge (natDegree_eq_zero_iff_degree_le_zero.not.mp H)).symm
   )
   letI : Algebra K[X] F[X] := Polynomial.algebra K F
+  simp only [IsRoot.def, eval_map_algebraMap] at hα
 
-  have θ_aeval : aeval (Polynomial.C α) θ = 0 := by
-    rw [← hQΦ]
-    simp
-    apply Or.inl
-    nth_rw 2 [← algebraMap_eq]
-    rw [aeval_map_algebraMap]
-    rw [← eval_map_algebraMap]
+  apply_fun aeval (Polynomial.C α) at hQΦ
+  rw [aeval_mul] at hQΦ
+  rw [← map_aeval_eq_aeval_map (by ext; simp), hα, map_zero] at hQΦ
+  rw [zero_mul] at hQΦ
+  rw [aeval_sub, aeval_mul, aeval_mul, aeval_C, aeval_C] at hQΦ
+  rw [← map_aeval_eq_aeval_map (by ext; simp)] at hQΦ
+  rw [← map_aeval_eq_aeval_map (by ext; simp)] at hQΦ
+  simp only [algebraMap_def, coe_mapRingHom] at hQΦ
+  replace hQΦ := hQΦ.symm
+  rw [sub_eq_zero] at hQΦ
+  apply u.eq_C_iff.not.mp hu
+  obtain ⟨aeval_num_ne_zero, aeval_denom_ne_zero⟩ : aeval α u.num ≠ 0 ∧ aeval α u.denom ≠ 0 := by
+    obtain (h | h) := aeval_ne_zero_of_isCoprime u.isCoprime_num_denom α
+    · refine ⟨h, ?_⟩
+      apply_fun Polynomial.C
+      rw [map_zero]
+      have := hQΦ ▸ mul_ne_zero (Polynomial.map_ne_zero u.denom_ne_zero) ((Polynomial.C_ne_zero.mpr h))
+      rw [mul_ne_zero_iff_left (Polynomial.map_ne_zero (num_ne_zero u_ne_zero))] at this
+      exact this
+    · refine ⟨?_, h⟩
+      apply_fun Polynomial.C
+      rw [map_zero]
+      have := hQΦ ▸ mul_ne_zero (Polynomial.map_ne_zero (num_ne_zero u_ne_zero)) ((Polynomial.C_ne_zero.mpr h))
+      rw [mul_ne_zero_iff_left (Polynomial.map_ne_zero u.denom_ne_zero)] at this
+      exact this
+  constructor
+  · rw [← natDegree_map_eq_of_injective (FaithfulSMul.algebraMap_injective K F) u.num]
+    apply natDegree_eq_zero_of_isUnit
+    rw [← Polynomial.coe_mapRingHom] at hQΦ
+    refine IsCoprime.isUnit_of_dvd (IsCoprime.map u.isCoprime_num_denom (Polynomial.mapRingHom (algebraMap K F))) ?_
+    rw [← IsUnit.dvd_mul_right (isUnit_C.mpr (isUnit_iff_ne_zero.mpr aeval_num_ne_zero))]
+    use Polynomial.C ((aeval α) u.denom)
+    exact hQΦ
+  · rw [← natDegree_map_eq_of_injective (FaithfulSMul.algebraMap_injective K F) u.denom]
+    apply natDegree_eq_zero_of_isUnit
+    rw [← Polynomial.coe_mapRingHom] at hQΦ
+    refine IsCoprime.isUnit_of_dvd (IsCoprime.map u.isCoprime_num_denom (Polynomial.mapRingHom (algebraMap K F))).symm ?_
+    rw [← IsUnit.dvd_mul_right (isUnit_C.mpr (isUnit_iff_ne_zero.mpr aeval_denom_ne_zero))]
+    use Polynomial.C ((aeval α) u.num)
+    exact hQΦ.symm
 
-    simp at hα
-    
-
-    sorry
-
-  sorry
-
-#check aeval
 end RatFunc
 
