@@ -227,6 +227,9 @@ def Bivariate.swap : R[X][Y] ≃ₐ[R] R[X][Y] := by
     <;> (ext n m <;> simp)
 
 @[simp]
+theorem Bivariate.swap_symm : swap.symm = (swap (R := R)) := rfl
+
+@[simp]
 theorem Bivariate.swap_apply (p : R[X][Y]) : swap p = p.aevalAeval (A := R[X][Y]) Y (C X) := rfl
 
 theorem Bivariate.swap_X : swap (R := R) (C X) = Y := by simp
@@ -237,6 +240,9 @@ theorem Bivariate.swap_C_C (r : R) : swap (C (C r)) = C (C r) := by simp
 
 theorem Bivariate.swap_C (f : R[X]) : swap (C f) = f.map C := by
   simpa [← algebraMap_eq] using aeval_X_left_eq_map f
+
+theorem Bivariate.swap_swap_apply (p : R[X][Y]) : swap (swap p) = p :=
+  AlgEquiv.symm_apply_apply swap p
 
 theorem Bivariate.swap_map_C (f : R[X]) : swap (f.map C) = C f := by
   induction f using Polynomial.induction_on' with

@@ -394,6 +394,11 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
     rw [denom_dvd (num_ne_zero c_ne_zero)]
     use Φ.coeff i
     rw [Φ_coeff_i, mul_div_cancel_left₀ _ (algebraMap_ne_zero (num_ne_zero c_ne_zero))]
+  have Φ_ne_zero : Φ ≠ 0 := by
+    intro H
+    have := Φ_coeff_n' ▸ congr($(H).coeff ψ.natDegree)
+    rw [coeff_zero] at this
+    exact num_ne_zero c_ne_zero this
 
   -- Get Q
   obtain ⟨q, hq⟩ : ψ ∣ (minpolyX u).map (algebraMap K⟮u⟯ E) := by
@@ -402,7 +407,13 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
     exact u.minpolyX_aeval_X
   let Q : (RatFunc K)[X] := Polynomial.C ((algebraMap K[X] (RatFunc K) u.denom) / c) *
     q.map (algebraMap E (RatFunc K))
-     
+  have q_ne_zero : q ≠ 0 := right_ne_zero_of_mul <|
+    hq ▸ Polynomial.map_ne_zero (u.minpolyX_eq_zero_iff.not.mpr hu)
+  have Q_ne_zero : Q ≠ 0 := by
+    apply mul_ne_zero
+    · apply C_ne_zero.mpr (div_ne_zero (algebraMap_ne_zero u.denom_ne_zero) c_ne_zero)
+    · exact Polynomial.map_ne_zero q_ne_zero
+
   -- Define θ := g(X) * f(Y) - f(X) * g(Y)
   let θ : K[X][Y] := Polynomial.C u.denom * u.num.map Polynomial.C -
     Polynomial.C u.num * u.denom.map Polynomial.C
@@ -447,6 +458,8 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
     exact ⟨_, rfl⟩
   rw [← hQ', algebraMap_def, coe_mapRingHom, ← Polynomial.map_mul] at hQΦ
   replace hQΦ := Polynomial.map_injective _ (algebraMap_injective K) hQΦ
+  have Q'_ne_zero : Q' ≠ 0 :=
+    (map_ne_zero_iff _ (FaithfulSMul.algebraMap_injective _ _)).mp (hQ' ▸ Q_ne_zero)
   
   -- massage the goal to say Φ.natDegree = _
   rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq]
@@ -516,8 +529,67 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
       exact Finset.le_sup (f := fun i ↦ (Φ.coeff i).natDegree) (mem_support_iff.mpr this)
   
   have swapQ'_deg : (Bivariate.swap Q').natDegree = 0 := by
+    have := congr(Bivariate.swap $(hQΦ))
+    rw [map_mul] at this
+    replace this := congr($(this).natDegree)
+    rw [natDegree_mul
+      ((map_ne_zero_iff _ Bivariate.swap.injective).mpr Q'_ne_zero)
+      ((map_ne_zero_iff _ Bivariate.swap.injective).mpr Φ_ne_zero)] at this
+    have foo : (Bivariate.swap θ).natDegree ≤ max u.num.natDegree u.denom.natDegree := by
+      rw [swap_θ, natDegree_neg]
+      exact degθ
+    linarith
+
+  let Q₂ : K[X] := (Bivariate.swap Q').coeff 0
+  have hQ₂ : Q₂.map (algebraMap K K[X]) = Q' := by
+    have := congr(Bivariate.swap $(eq_C_of_natDegree_eq_zero swapQ'_deg))
+    rw [Bivariate.swap_swap_apply] at this
+    rw [Bivariate.swap_C] at this
+    exact this.symm
+  rw [← hQ₂] at hQΦ
+
+  suffices Q₂_deg : Q₂.natDegree = 0 by
+    apply le_antisymm
+    · have := congr($(hQΦ).natDegree)
+      rw [natDegree_mul (by rwa [hQ₂]) Φ_ne_zero, natDegree_map, Q₂_deg, zero_add] at this
+      rwa [this]
+    · have := congr($(hQΦ).natDegree)
+
+      rw [natDegree_mul (by rwa [hQ₂]) Φ_ne_zero, natDegree_map, Q₂_deg, zero_add] at this
+      rw [this]
+      have := congr((Bivariate.swap $(hQΦ)).natDegree)
+      rw [eq_C_of_natDegree_eq_zero Q₂_deg] at this
+      rw [map_C, map_mul, Bivariate.swap_C, algebraMap_eq, map_C] at this
+      rw [natDegree_mul, natDegree_C, zero_add] at this
+      · rw [← natDegree_neg θ, ← swap_θ, ← this]
+        exact crucial
+      · rw [C_ne_zero, ← eq_C_of_natDegree_eq_zero Q₂_deg]
+        exact (Polynomial.map_ne_zero_iff (FaithfulSMul.algebraMap_injective K K[X])).mp (hQ₂ ▸ Q'_ne_zero)
+      · exact ((map_ne_zero_iff _ Bivariate.swap.injective).mpr Φ_ne_zero)
+
+  by_contra H
+  let F := AlgebraicClosure K
+  obtain ⟨α, hα⟩ := IsAlgClosed.exists_root (Q₂.map (algebraMap K F)) (by
+    rw [degree_map]
+    exact (ne_of_not_ge (natDegree_eq_zero_iff_degree_le_zero.not.mp H)).symm
+  )
+  letI : Algebra K[X] F[X] := Polynomial.algebra K F
+
+  have θ_aeval : aeval (Polynomial.C α) θ = 0 := by
+    rw [← hQΦ]
+    simp
+    apply Or.inl
+    nth_rw 2 [← algebraMap_eq]
+    rw [aeval_map_algebraMap]
+    rw [← eval_map_algebraMap]
+
+    simp at hα
+    
+
     sorry
+
   sorry
 
+#check aeval
 end RatFunc
 
