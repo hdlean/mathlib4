@@ -81,13 +81,30 @@ section
 variable {A R : Type*} [CommRing R] [CommRing A] [Algebra R A]
 variable {ι : Type*} {s : Finset ι} {f : ι → R[X]} {v : ι → A}
 
+lemma degree_sum_eq_of_linearIndepOn (h : LinearIndepOn R v s) :
+    (∑ i ∈ s, v i • (f i).map (algebraMap R A)).degree = s.sup (fun i ↦ (f i).degree) := by
+  apply le_antisymm
+  · exact (degree_sum_le s _).trans <| Finset.sup_le fun i hi ↦ (degree_smul_le _ _).trans <|
+      degree_map_le.trans <| Finset.le_sup (f := fun i ↦ (f i).degree) hi
+  · apply Finset.sup_le
+    intro i hi
+    by_cases hf : f i = 0
+    · rw [hf, degree_zero]
+      exact OrderBot.bot_le _
+    rw [degree_eq_natDegree hf]
+    apply le_degree_of_ne_zero
+    rw [finset_sum_coeff]
+    conv =>
+      lhs; rhs; enter [x];
+      rw [coeff_smul, smul_eq_mul, coeff_map, mul_comm, ← Algebra.smul_def]
+    intro H
+    exact hf (leadingCoeff_eq_zero.mp (linearIndepOn_finset_iff.mp h _ H i hi))
+
 lemma natDegree_sum_eq_of_linearIndepOn (h : LinearIndepOn R v s) :
     (∑ i ∈ s, v i • (f i).map (algebraMap R A)).natDegree = s.sup (fun i ↦ (f i).natDegree) := by
   apply le_antisymm
-  · apply natDegree_sum_le_of_forall_le
-    intro i hi
-    exact (natDegree_smul_le _ _).trans <| natDegree_map_le.trans <|
-      Finset.le_sup (f := fun i ↦ (f i).natDegree) hi
+  · refine natDegree_sum_le_of_forall_le _ _ fun i hi ↦ (natDegree_smul_le _ _).trans <|
+      natDegree_map_le.trans <| Finset.le_sup (f := fun i ↦ (f i).natDegree) hi
   · apply Finset.sup_le
     intro i hi
     by_cases hf : f i = 0
