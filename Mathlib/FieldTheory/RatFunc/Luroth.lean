@@ -254,55 +254,124 @@ theorem IntermediateField.isAlgebraic_X (hE : E ≠ ⊥) : IsAlgebraic E (X : Ra
   exact IsAlgebraic.tower_top_of_subalgebra_le (adjoin_simple_le_iff.mpr hf₁) <|
     f.isAlgebraic_adjoin_simple_X (by rintro ⟨c, rfl⟩; exact hf₂ ⟨c, rfl⟩)
 
+namespace Luroth
+
 open Polynomial
 
 open scoped Polynomial.Bivariate
 
+variable {E} in
+lemma finrank_pos (h : E ≠ ⊥) : 0 < Module.finrank E (RatFunc K) := by
+  rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq,
+    adjoin.finrank (IntermediateField.isAlgebraic_X E h).isIntegral]
+  apply minpoly.natDegree_pos (IntermediateField.isAlgebraic_X E h).isIntegral
+
+noncomputable abbrev ψ : E[X] := minpoly E (X : RatFunc K)
+
+variable {E} in
+private lemma exists_coeff_not_mem (hE : E ≠ ⊥) :
+    ∃ i, (ψ E).coeff i ∉ (algebraMap K E).range := by
+  rw [← not_mem_map_range]
+  intro ⟨ψ', hψ'⟩
+  rw [coe_mapRingHom] at hψ'
+  refine transcendental_X (K := K) ⟨ψ', ?_, ?_⟩
+  · apply (Polynomial.map_ne_zero_iff (FaithfulSMul.algebraMap_injective K E)).mp
+    rw [hψ']
+    exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral
+  · replace hψ' := congr(aeval (X : RatFunc K) $(hψ'))
+    rw [aeval_map_algebraMap, aeval_X_left_eq_algebraMap, minpoly.aeval,
+      map_eq_zero_iff _ (algebraMap_injective K)] at hψ'
+    rw [hψ', aeval_zero]
+
+variable {E} in
+@[no_expose] noncomputable def generator_index (h : E ≠ ⊥) : ℕ :=
+  (exists_coeff_not_mem h).choose
+
+open Classical in
+noncomputable def generator : E := 
+  if h : E = ⊥ then 0 else (ψ E).coeff (generator_index h)
+
+variable {E} in
+lemma generator_eq (h : E ≠ ⊥) : generator E = (ψ E).coeff (generator_index h) := by
+  unfold generator
+  rw [dif_neg h]
+
+variable {E} in
+private lemma generator_spec (h : E ≠ ⊥) : generator E ∉ (algebraMap K E).range := by
+  rw [generator_eq h]
+  exact (exists_coeff_not_mem h).choose_spec
+
+variable {E} in
+private lemma generator_ne_C (h : E ≠ ⊥) : ¬ ∃ c, (generator E : RatFunc K) = C c :=
+  fun ⟨c, hc⟩ ↦ generator_spec h ⟨c, Subtype.ext (by simpa using hc.symm)⟩
+
+variable {E} in
+private lemma generator_ne_zero (h : E ≠ ⊥) : (generator E : RatFunc K) ≠ 0 :=
+  fun H ↦ generator_ne_C h ⟨0, by simp [H]⟩
+
+private lemma adjoin_generator_le : K⟮(generator E).1⟯ ≤ E :=
+  adjoin_simple_le_iff.mpr (Subtype.property _)
+
+@[no_expose] private noncomputable local instance : Algebra K⟮(generator E).1⟯ E :=
+  (IntermediateField.inclusion (adjoin_generator_le E)).toAlgebra
+
+private noncomputable abbrev Φ' : K[X][Y] :=
+  IsLocalization.integerNormalization (nonZeroDivisors K[X]) ((ψ E).map (algebraMap E (RatFunc K)))
+
+open Classical in
+private noncomputable abbrev Φ : K[X][Y] := (Φ' E).primPart
+
+private noncomputable abbrev b : K[X] :=
+  (IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X])
+    ((ψ E).map (algebraMap E (RatFunc K)))).choose.1
+
+private lemma b_ne_zero : b E ≠ 0 :=
+  nonZeroDivisors.ne_zero <| (IsLocalization.integerNormalization_map_to_map _
+    ((ψ E).map (algebraMap ..))).choose.2
+
+private lemma Φ'_map :
+    (Φ' E).map (algebraMap K[X] (RatFunc K)) = (b E) • (ψ E).map (algebraMap E (RatFunc K)) :=
+  (IsLocalization.integerNormalization_map_to_map _ ((ψ E).map (algebraMap ..))).choose_spec
+
+open Classical in
+private noncomputable abbrev c : RatFunc K :=
+  (algebraMap K[X] (RatFunc K) (Φ' E).content)⁻¹ * (algebraMap K[X] (RatFunc K) (b E))
+
+private lemma c_ne_zero (h : E ≠ ⊥) : c E ≠ 0 := by
+  classical
+  rw [mul_ne_zero_iff]
+  constructor
+  · apply inv_ne_zero
+    rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff, content_eq_zero_iff,
+      IsFractionRing.integerNormalization_eq_zero_iff, Polynomial.map_eq_zero]
+    exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E h).isIntegral
+  · rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff]
+    exact b_ne_zero E
 
 set_option backward.isDefEq.respectTransparency false in
 
 /-- Lüroth's theorem. -/
-theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := by
+theorem IntermediateField.eq_adjoin_simple : E = K⟮(generator E : RatFunc K)⟯ := by
   classical
   by_cases hE : E = ⊥
-  · exact ⟨0, (hE ▸ adjoin_zero).symm⟩
-  let ψ : E[X] := minpoly E (X : RatFunc K)
-  obtain ⟨i, hi⟩ : ∃ i, ψ.coeff i ∉ (algebraMap K E).range := by
-    by_contra! h
-    obtain ⟨ψ', hψ'⟩ := (mem_map_range _).mpr h
-    refine transcendental_X (K := K) ⟨ψ', ?_, ?_⟩
-    · rintro rfl
-      rw [coe_mapRingHom, Polynomial.map_zero, eq_comm] at hψ'
-      exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral hψ'
-    · replace hψ' := congr(aeval (X : RatFunc K) $(hψ'))
-      rw [coe_mapRingHom, aeval_map_algebraMap, aeval_X_left_eq_algebraMap, minpoly.aeval,
-        map_eq_zero_iff _ (algebraMap_injective K)] at hψ'
-      rw [aeval_X_left_eq_algebraMap, FaithfulSMul.algebraMap_eq_zero_iff]
-      exact hψ'
-  let u : RatFunc K := ψ.coeff i
-  have hu : ¬ ∃ c, u = C c := fun ⟨c, hc⟩ ↦ hi ⟨c, Subtype.ext (by simpa using hc.symm)⟩
-  have u_ne_zero : u ≠ 0 := fun H ↦ hu ⟨0, by rwa [map_zero]⟩
-  have adjoin_u_le : K⟮u⟯ ≤ E := adjoin_simple_le_iff.mpr (Subtype.property _)
-  letI : Algebra K⟮u⟯ E := (IntermediateField.inclusion adjoin_u_le).toAlgebra
-  have n_pos : 0 < Module.finrank E (RatFunc K) := by
-    rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq]
-    rw [adjoin.finrank (IntermediateField.isAlgebraic_X E hE).isIntegral]
-    apply minpoly.natDegree_pos (IntermediateField.isAlgebraic_X E hE).isIntegral
+  · rwa [generator, dif_pos hE, ZeroMemClass.coe_zero, adjoin_zero]
 
-  use u
-  refine le_antisymm (relfinrank_eq_one_iff.mp ?_) adjoin_u_le
+  refine le_antisymm (relfinrank_eq_one_iff.mp ?_) (adjoin_generator_le E)
 
-  suffices Module.finrank E (RatFunc K) = Module.finrank K⟮u⟯ (RatFunc K) from
-    (mul_eq_right₀ (by lia)).mp (this ▸ relfinrank_mul_finrank_top adjoin_u_le)
-
+  suffices Module.finrank E (RatFunc K) = Module.finrank K⟮(generator E).1⟯ (RatFunc K) from
+    (mul_eq_right₀ ((this ▸ finrank_pos hE).ne.symm)).mp <|
+      this ▸ relfinrank_mul_finrank_top (adjoin_generator_le E)
+  
   -- Define Φ and prove its spec
   let Φ' : K[X][Y] := IsLocalization.integerNormalization (nonZeroDivisors K[X])
-    (ψ.map (algebraMap E (RatFunc K)))
+    ((ψ E).map (algebraMap E (RatFunc K)))
   let Φ : K[X][Y] := Φ'.primPart
   obtain ⟨⟨b, hb₁⟩, (hb₂ : Φ'.map _ = _)⟩ :=
     IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X])
-    (ψ.map (algebraMap E (RatFunc K)))
-  let c : RatFunc K := (algebraMap K[X] (RatFunc K) Φ'.content)⁻¹ * algebraMap K[X] (RatFunc K) b
+    ((ψ E).map (algebraMap E (RatFunc K)))
+  let c : RatFunc K := (algebraMap K[X] (RatFunc K) Φ'.content)⁻¹ * (algebraMap K[X] (RatFunc K) <|
+    (IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X]) ((ψ E).map (algebraMap E (RatFunc K)))).choose.1)
+  let hb₂ : Φ'.map _ = _ := (IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X]) ((ψ E).map (algebraMap E (RatFunc K)))).choose_spec
   have c_ne_zero : c ≠ 0 := by
     rw [mul_ne_zero_iff]
     constructor
@@ -311,8 +380,9 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
         IsFractionRing.integerNormalization_eq_zero_iff, Polynomial.map_eq_zero]
       exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral
     · rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff]
-      exact nonZeroDivisors.ne_zero hb₁
-  have hcψ : Polynomial.C c * ψ.map (algebraMap E (RatFunc K)) = Φ.map (algebraMap K[X] (RatFunc K)) := by
+      exact nonZeroDivisors.ne_zero (IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X]) ((ψ E).map (algebraMap E (RatFunc K)))).choose.2
+
+  have hcψ : Polynomial.C c * (ψ E).map (algebraMap E (RatFunc K)) = Φ.map (algebraMap K[X] (RatFunc K)) := by
     rw [map_mul, mul_assoc]
     conv =>
       lhs; rhs
@@ -321,8 +391,8 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
     · rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff, content_eq_zero_iff,
         IsFractionRing.integerNormalization_eq_zero_iff, Polynomial.map_eq_zero]
       exact minpoly.ne_zero (IntermediateField.isAlgebraic_X E hE).isIntegral
-  have Φ_coeff_n : algebraMap K[X] (RatFunc K) (Φ.coeff ψ.natDegree) = c := by
-    have := congr($(hcψ).coeff ψ.natDegree)
+  have Φ_coeff_n : algebraMap K[X] (RatFunc K) (Φ.coeff (ψ E).natDegree) = c := by
+    have := congr($(hcψ).coeff (ψ E).natDegree)
     rw [coeff_C_mul, coeff_map, coeff_map, coeff_natDegree, IntermediateField.algebraMap_apply,
       minpoly.monic (IntermediateField.isAlgebraic_X E hE).isIntegral, OneMemClass.coe_one,
       mul_one] at this
@@ -330,52 +400,54 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
   have c_denom : c.denom = 1 := by
     rw [← Φ_coeff_n]
     exact denom_algebraMap _
-  have Φ_coeff_n' : Φ.coeff ψ.natDegree = c.num := by
+  have Φ_coeff_n' : Φ.coeff (ψ E).natDegree = c.num := by
     apply algebraMap_injective
     rw [Φ_coeff_n]
     conv_lhs => rw [← num_div_denom c, c_denom, map_one, div_one]
-  have Φ_coeff_i : algebraMap K[X] (RatFunc K) (Φ.coeff i) = algebraMap K[X] (RatFunc K) c.num * u := by
-    have := congr($(hcψ).coeff i)
+  have Φ_coeff_i : algebraMap K[X] (RatFunc K) (Φ.coeff (generator_index hE)) =
+      algebraMap K[X] (RatFunc K) c.num * (generator E).1 := by
+    have := congr($(hcψ).coeff (generator_index hE))
     rw [coeff_map, coeff_C_mul, coeff_map, IntermediateField.algebraMap_apply] at this
     rw [← num_div_denom c, c_denom, map_one, div_one] at this
+    rw [generator_eq hE]
     exact this.symm
-  have u_denom_dvd_c_num : u.denom ∣ c.num := by
+  have u_denom_dvd_c_num : (generator E : RatFunc K).denom ∣ c.num := by
     rw [denom_dvd (num_ne_zero c_ne_zero)]
-    use Φ.coeff i
+    use Φ.coeff (generator_index hE)
     rw [Φ_coeff_i, mul_div_cancel_left₀ _ (algebraMap_ne_zero (num_ne_zero c_ne_zero))]
   have Φ_ne_zero : Φ ≠ 0 := by
     intro H
-    have := Φ_coeff_n' ▸ congr($(H).coeff ψ.natDegree)
+    have := Φ_coeff_n' ▸ congr($(H).coeff (ψ E).natDegree)
     rw [coeff_zero] at this
     exact num_ne_zero c_ne_zero this
 
   -- Get Q
-  obtain ⟨q, hq⟩ : ψ ∣ (u.minpolyX K⟮u⟯).map (algebraMap K⟮u⟯ E) := by
+  obtain ⟨q, hq⟩ : ψ E ∣ ((generator E).1.minpolyX K⟮(generator E).1⟯).map (algebraMap _ E) := by
     apply minpoly.dvd
     rw [← aeval_eq_aeval_map rfl]
-    exact u.minpolyX_aeval_X
-  let Q : (RatFunc K)[X] := Polynomial.C ((algebraMap K[X] (RatFunc K) u.denom) / c) *
+    exact (generator E).1.minpolyX_aeval_X
+  let Q : (RatFunc K)[X] := Polynomial.C ((algebraMap K[X] (RatFunc K) (generator E).1.denom) / c) *
     q.map (algebraMap E (RatFunc K))
   have q_ne_zero : q ≠ 0 := right_ne_zero_of_mul <|
-    hq ▸ Polynomial.map_ne_zero (u.minpolyX_eq_zero_iff.not.mpr hu)
+    hq ▸ Polynomial.map_ne_zero ((generator E).1.minpolyX_eq_zero_iff.not.mpr (generator_ne_C hE))
   have Q_ne_zero : Q ≠ 0 := by
     apply mul_ne_zero
-    · apply C_ne_zero.mpr (div_ne_zero (algebraMap_ne_zero u.denom_ne_zero) c_ne_zero)
+    · apply C_ne_zero.mpr (div_ne_zero (algebraMap_ne_zero (generator E).1.denom_ne_zero) c_ne_zero)
     · exact Polynomial.map_ne_zero q_ne_zero
 
   -- Define θ := g(X) * f(Y) - f(X) * g(Y)
-  let θ : K[X][Y] := Polynomial.C u.denom * u.num.map Polynomial.C -
-    Polynomial.C u.num * u.denom.map Polynomial.C
+  let θ : K[X][Y] := Polynomial.C (generator E).1.denom * (generator E).1.num.map Polynomial.C -
+    Polynomial.C (generator E).1.num * (generator E).1.denom.map Polynomial.C
   have swap_θ : Polynomial.Bivariate.swap θ = -θ := by
     rw [map_sub, map_mul, map_mul, Bivariate.swap_C, Bivariate.swap_map_C, Bivariate.swap_C,
       Bivariate.swap_map_C]
     ring
-  have degθ : θ.natDegree ≤ max u.num.natDegree u.denom.natDegree := by
+  have degθ : θ.natDegree ≤ max (generator E).1.num.natDegree (generator E).1.denom.natDegree := by
     convert natDegree_sub_le _ _ using 3
-    · rw [natDegree_mul (C_ne_zero.mpr u.denom_ne_zero)
-        (Polynomial.map_ne_zero (num_ne_zero u_ne_zero)), natDegree_C, zero_add, natDegree_map]
-    · rw [natDegree_mul (C_ne_zero.mpr (num_ne_zero u_ne_zero))
-        (Polynomial.map_ne_zero u.denom_ne_zero), natDegree_C, zero_add, natDegree_map]
+    · rw [natDegree_mul (C_ne_zero.mpr (generator E).1.denom_ne_zero)
+        (Polynomial.map_ne_zero (num_ne_zero (generator_ne_zero hE))), natDegree_C, zero_add, natDegree_map]
+    · rw [natDegree_mul (C_ne_zero.mpr (num_ne_zero (generator_ne_zero hE)))
+        (Polynomial.map_ne_zero (generator E).1.denom_ne_zero), natDegree_C, zero_add, natDegree_map]
 
   -- Equation (11.3.8)
   have hQΦ : Q * Φ.map (algebraMap K[X] (RatFunc K)) = θ.map (algebraMap K[X] (RatFunc K)) := by
@@ -387,15 +459,16 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
       lhs
       rw [mul_comm]
     rw [← mul_assoc, ← mul_assoc, ← C_mul, div_mul_cancel₀ _ c_ne_zero, mul_assoc,
-      ← Polynomial.map_mul, mul_comm q ψ, ← hq]
+      ← Polynomial.map_mul, mul_comm q (ψ E), ← hq]
     rw [Polynomial.map_map, Polynomial.map_sub, Polynomial.map_mul, map_C]
     simp only [RingHom.coe_comp, Function.comp_apply, IntermediateField.algebraMap_apply]
     rw [Polynomial.map_map, Polynomial.map_map] 
     rw [mul_sub, ← mul_assoc, ← map_mul]
-    rw [(IntermediateField.inclusion adjoin_u_le).algebraMap_toAlgebra]
-    rw [AlgHom.toRingHom_eq_coe, RingHom.coe_coe, coe_inclusion, AdjoinSimple.coe_gen]
-    conv => lhs; rhs; lhs; rhs; rhs; rw [← num_div_denom u]
-    rw [mul_div_cancel₀ _ ((FaithfulSMul.algebraMap_eq_zero_iff _ _).not.mpr u.denom_ne_zero)]
+    rw [(IntermediateField.inclusion (adjoin_generator_le E)).algebraMap_toAlgebra]
+    rw [AlgHom.toRingHom_eq_coe, RingHom.coe_coe, coe_inclusion]
+    rw [coe_algebraMap]
+    conv => lhs; rhs; lhs; rhs; rhs; rw [← num_div_denom (generator E).1]
+    rw [mul_div_cancel₀ _ ((FaithfulSMul.algebraMap_eq_zero_iff _ _).not.mpr (generator E).1.denom_ne_zero)]
     rw [Polynomial.map_sub, Polynomial.map_mul, Polynomial.map_mul, map_C, map_C]
     rw [Polynomial.map_map, Polynomial.map_map]
     rfl
@@ -422,15 +495,15 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
   rw [Polynomial.natDegree_map_eq_of_injective (algebraMap_injective K)]
   rw [finrank_eq_max_natDegree]
   
-  have degΦ₁ : u.num.natDegree ≤ (Φ.coeff i).natDegree := by
-    have := congr($(Φ_coeff_i) * algebraMap K[X] (RatFunc K) u.denom)
+  have degΦ₁ : (generator E).1.num.natDegree ≤ (Φ.coeff (generator_index hE)).natDegree := by
+    have := congr($(Φ_coeff_i) * algebraMap K[X] (RatFunc K) (generator E).1.denom)
     conv at this =>
       rhs
       lhs
       rhs
-      rw [← num_div_denom u]
+      rw [← num_div_denom (generator E).1]
     rw [mul_assoc] at this
-    rw [div_mul_cancel₀ _ (algebraMap_ne_zero u.denom_ne_zero)] at this
+    rw [div_mul_cancel₀ _ (algebraMap_ne_zero (generator E).1.denom_ne_zero)] at this
     rw [← map_mul, ← map_mul] at this
     replace this := congr($(algebraMap_injective K this).natDegree)
     rw [natDegree_mul, natDegree_mul] at this
@@ -439,19 +512,19 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
       exact natDegree_le_of_dvd u_denom_dvd_c_num (num_ne_zero c_ne_zero)
     -- side goals from `natDegree_mul`
     · exact num_ne_zero c_ne_zero
-    · exact num_ne_zero u_ne_zero
+    · exact num_ne_zero (generator_ne_zero hE)
     · intro H
       replace H := congr(algebraMap K[X] (RatFunc K) $(H))
       rw [Φ_coeff_i] at H
-      simp at H
-      exact Or.elim H c_ne_zero u_ne_zero
-    · exact u.denom_ne_zero
+      simp only [map_zero, mul_eq_zero, FaithfulSMul.algebraMap_eq_zero_iff, num_eq_zero_iff] at H
+      refine Or.elim H c_ne_zero (generator_ne_zero hE)
+    · exact (generator E).1.denom_ne_zero
 
-  have degΦ₂ : u.denom.natDegree ≤ (Φ.coeff ψ.natDegree).natDegree := by
+  have degΦ₂ : (generator E).1.denom.natDegree ≤ (Φ.coeff (ψ E).natDegree).natDegree := by
     rw [Φ_coeff_n']
     exact natDegree_le_of_dvd u_denom_dvd_c_num (num_ne_zero c_ne_zero)
     
-  have crucial : max u.num.natDegree u.denom.natDegree ≤ (Bivariate.swap Φ).natDegree := by
+  have crucial : max (generator E).1.num.natDegree (generator E).1.denom.natDegree ≤ (Bivariate.swap Φ).natDegree := by
     rw [← sum_monomial_eq Φ, sum_def, map_sum]
     conv =>
       rhs; rhs; rhs; enter [x];
@@ -464,15 +537,15 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
     · exact (basisMonomials K).linearIndepOn Φ.support --?
     apply max_le
     · apply degΦ₁.trans
-      have : Φ.coeff i ≠ 0 := by
+      have : Φ.coeff (generator_index hE) ≠ 0 := by
         intro H
         replace H := congr(algebraMap K[X] (RatFunc K) $(H))
         rw [Φ_coeff_i] at H
-        simp at H
-        exact Or.elim H c_ne_zero u_ne_zero
+        simp only [map_zero, mul_eq_zero, FaithfulSMul.algebraMap_eq_zero_iff, num_eq_zero_iff] at H
+        exact Or.elim H c_ne_zero (generator_ne_zero hE)
       exact Finset.le_sup (f := fun i ↦ (Φ.coeff i).natDegree) (mem_support_iff.mpr this)
     · apply degΦ₂.trans
-      have : Φ.coeff ψ.natDegree ≠ 0 := by
+      have : Φ.coeff (ψ E).natDegree ≠ 0 := by
         rw [Φ_coeff_n']
         exact num_ne_zero c_ne_zero
       exact Finset.le_sup (f := fun i ↦ (Φ.coeff i).natDegree) (mem_support_iff.mpr this)
@@ -484,7 +557,7 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
     rw [natDegree_mul
       ((map_ne_zero_iff _ Bivariate.swap.injective).mpr Q'_ne_zero)
       ((map_ne_zero_iff _ Bivariate.swap.injective).mpr Φ_ne_zero)] at this
-    have foo : (Bivariate.swap θ).natDegree ≤ max u.num.natDegree u.denom.natDegree := by
+    have foo : (Bivariate.swap θ).natDegree ≤ max (generator E).1.num.natDegree (generator E).1.denom.natDegree := by
       rw [swap_θ, natDegree_neg]
       exact degθ
     linarith
@@ -535,35 +608,35 @@ theorem IntermediateField.eq_adjoin_simple : ∃ u : RatFunc K, E = K⟮u⟯ := 
   simp only [algebraMap_def, coe_mapRingHom] at hQΦ
   replace hQΦ := hQΦ.symm
   rw [sub_eq_zero] at hQΦ
-  apply u.eq_C_iff.not.mp hu
-  obtain ⟨aeval_num_ne_zero, aeval_denom_ne_zero⟩ : aeval α u.num ≠ 0 ∧ aeval α u.denom ≠ 0 := by
-    obtain (h | h) := aeval_ne_zero_of_isCoprime u.isCoprime_num_denom α
+  apply (generator E).1.eq_C_iff.not.mp (generator_ne_C hE)
+  obtain ⟨aeval_num_ne_zero, aeval_denom_ne_zero⟩ : aeval α (generator E).1.num ≠ 0 ∧ aeval α (generator E).1.denom ≠ 0 := by
+    obtain (h | h) := aeval_ne_zero_of_isCoprime (generator E).1.isCoprime_num_denom α
     · refine ⟨h, ?_⟩
       apply_fun Polynomial.C
       rw [map_zero]
-      have := hQΦ ▸ mul_ne_zero (Polynomial.map_ne_zero u.denom_ne_zero) ((Polynomial.C_ne_zero.mpr h))
-      rw [mul_ne_zero_iff_left (Polynomial.map_ne_zero (num_ne_zero u_ne_zero))] at this
+      have := hQΦ ▸ mul_ne_zero (Polynomial.map_ne_zero (generator E).1.denom_ne_zero) ((Polynomial.C_ne_zero.mpr h))
+      rw [mul_ne_zero_iff_left (Polynomial.map_ne_zero (num_ne_zero (generator_ne_zero hE)))] at this
       exact this
     · refine ⟨?_, h⟩
       apply_fun Polynomial.C
       rw [map_zero]
-      have := hQΦ ▸ mul_ne_zero (Polynomial.map_ne_zero (num_ne_zero u_ne_zero)) ((Polynomial.C_ne_zero.mpr h))
-      rw [mul_ne_zero_iff_left (Polynomial.map_ne_zero u.denom_ne_zero)] at this
+      have := hQΦ ▸ mul_ne_zero (Polynomial.map_ne_zero (num_ne_zero (generator_ne_zero hE))) ((Polynomial.C_ne_zero.mpr h))
+      rw [mul_ne_zero_iff_left (Polynomial.map_ne_zero (generator E).1.denom_ne_zero)] at this
       exact this
   constructor
-  · rw [← natDegree_map_eq_of_injective (FaithfulSMul.algebraMap_injective K F) u.num]
+  · rw [← natDegree_map_eq_of_injective (FaithfulSMul.algebraMap_injective K F) (generator E).1.num]
     apply natDegree_eq_zero_of_isUnit
     rw [← Polynomial.coe_mapRingHom] at hQΦ
-    refine IsCoprime.isUnit_of_dvd (IsCoprime.map u.isCoprime_num_denom (Polynomial.mapRingHom (algebraMap K F))) ?_
+    refine IsCoprime.isUnit_of_dvd (IsCoprime.map (generator E).1.isCoprime_num_denom (Polynomial.mapRingHom (algebraMap K F))) ?_
     rw [← IsUnit.dvd_mul_right (isUnit_C.mpr (isUnit_iff_ne_zero.mpr aeval_num_ne_zero))]
-    use Polynomial.C ((aeval α) u.denom)
+    use Polynomial.C ((aeval α) (generator E).1.denom)
     exact hQΦ
-  · rw [← natDegree_map_eq_of_injective (FaithfulSMul.algebraMap_injective K F) u.denom]
+  · rw [← natDegree_map_eq_of_injective (FaithfulSMul.algebraMap_injective K F) (generator E).1.denom]
     apply natDegree_eq_zero_of_isUnit
     rw [← Polynomial.coe_mapRingHom] at hQΦ
-    refine IsCoprime.isUnit_of_dvd (IsCoprime.map u.isCoprime_num_denom (Polynomial.mapRingHom (algebraMap K F))).symm ?_
+    refine IsCoprime.isUnit_of_dvd (IsCoprime.map (generator E).1.isCoprime_num_denom (Polynomial.mapRingHom (algebraMap K F))).symm ?_
     rw [← IsUnit.dvd_mul_right (isUnit_C.mpr (isUnit_iff_ne_zero.mpr aeval_denom_ne_zero))]
-    use Polynomial.C ((aeval α) u.num)
+    use Polynomial.C ((aeval α) (generator E).1.num)
     exact hQΦ.symm
 
 end RatFunc
