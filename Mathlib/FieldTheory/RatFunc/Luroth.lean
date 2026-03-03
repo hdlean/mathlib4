@@ -37,48 +37,6 @@ References:
 
 @[expose] public section
 
-namespace Polynomial
-
-section
-
-open IsLocalization
-
-variable {R K : Type*} [Nontrivial R] [CommRing R] [NormalizedGCDMonoid R] [Field K] [Algebra R K]
-  [IsFractionRing R K]
-
-attribute [local instance] Polynomial.algebra Polynomial.isLocalization in
-lemma isInteger_mul_iff_left {f : R[X]} (hf : IsPrimitive f) (g : K[X]) :
-    IsInteger R[X] (g * f.map (algebraMap R K)) ↔ IsInteger R[X] g := by
-  refine ⟨?_, fun h ↦ isInteger_mul h ⟨f, rfl⟩⟩
-  intro ⟨k, (hk : Polynomial.map _ _ = _)⟩
-  let g' := integerNormalization (nonZeroDivisors R) g
-  obtain ⟨b, hb₁, (hb₂ : Polynomial.map _ g' = _)⟩ :=
-    integerNormalization_spec (nonZeroDivisors R) g
-  have g'_mul_f : g' * f = b • k := by
-    apply Polynomial.map_injective (algebraMap R K) (FaithfulSMul.algebraMap_injective R K)
-    rw [Polynomial.map_smul, algebraMap_smul, hk]
-    rw [← smul_mul_assoc, ← hb₂, Polynomial.map_mul]
-  use C (normUnit b : R) * C k.content * g'.primPart
-  rw [Polynomial.algebraMap_def, coe_mapRingHom, Polynomial.map_mul, Polynomial.map_mul, map_C,
-    ← smul_right_inj (nonZeroDivisors.ne_zero hb₁), ← hb₂, Algebra.smul_def, algebraMap_apply,
-    Polynomial.map_C]
-  conv_rhs => rw [eq_C_content_mul_primPart g']
-  rw [Polynomial.map_mul, Polynomial.map_C, ← mul_assoc, ← C_mul, ← C_mul]
-  congr
-  conv_rhs => rw [← mul_one g'.content]
-  rw [← hf.content_eq_one, ← content_mul, g'_mul_f, smul_eq_C_mul, content_mul, content_C,
-    normalize_apply, map_mul, map_mul, mul_assoc]
-
-attribute [local instance] Polynomial.algebra Polynomial.isLocalization in
-lemma isInteger_mul_iff_right {f : R[X]} (hf : IsPrimitive f) (g : K[X]) :
-    IsInteger R[X] (f.map (algebraMap R K) * g) ↔ IsInteger R[X] g := by
-  convert isInteger_mul_iff_left hf g using 2
-  rw [mul_comm]
-
-end
-
-end Polynomial
-
 namespace RatFunc
 
 open IntermediateField algebraAdjoinAdjoin
@@ -556,7 +514,7 @@ private lemma Q₀_mul_Φ (h : E ≠ ⊥) :
 attribute [local instance] Polynomial.algebra in
 private lemma isInteger_Q₀ (h : E ≠ ⊥) : IsLocalization.IsInteger K[X][Y] (Q₀ E) := by
   classical
-  apply (Polynomial.isInteger_mul_iff_left (Φ' E).isPrimitive_primPart (Q₀ E)).mp
+  apply (isInteger_mul_map_iff_left (Φ' E).isPrimitive_primPart (Q₀ E)).mp
   rw [Q₀_mul_Φ h]
   exact ⟨_, rfl⟩
 
