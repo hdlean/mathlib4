@@ -229,18 +229,13 @@ namespace Luroth
 set_option backward.isDefEq.respectTransparency false
 
 open Polynomial
-
 open scoped Polynomial.Bivariate
 
 variable {E : IntermediateField K (RatFunc K)}
 
-set_option backward.isDefEq.respectTransparency false in
-lemma finrank_pos (h : E ≠ ⊥) : 0 < Module.finrank E (RatFunc K) := by
-  rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq,
-    adjoin.finrank (IntermediateField.isAlgebraic_X E h).isIntegral]
-  apply minpoly.natDegree_pos (IntermediateField.isAlgebraic_X E h).isIntegral
-
 variable (E) in
+/-- The minimal polynomial of `X` with coefficients in `E`. This is an auxiliary
+definition for the proof of Lüroth's theorem. -/
 private noncomputable abbrev ψ : E[X] := minpoly E (X : RatFunc K)
 
 private lemma ψ_ne_zero (h : E ≠ ⊥) : ψ E ≠ 0 :=
@@ -266,15 +261,17 @@ private lemma exists_ψ_coeff_not_mem (h : E ≠ ⊥) :
       map_eq_zero_iff _ (algebraMap_injective K)] at this
     rw [this, aeval_zero]
 
-@[no_expose] noncomputable def generatorIndex (h : E ≠ ⊥) : ℕ :=
+/-- The index we will use to define `generator E` as a coefficient of `ψ`. -/
+private noncomputable def generatorIndex (h : E ≠ ⊥) : ℕ :=
   (exists_ψ_coeff_not_mem h).choose
 
 variable (E) in
 open Classical in
+/-- A choice of a generator for Lüroth's theorem, see `eq_adjoin_generator`. -/
 @[no_expose] noncomputable def generator : RatFunc K := 
   if h : E = ⊥ then 0 else (ψ E).coeff (generatorIndex h)
 
-private lemma generator_eq_zero (h : E = ⊥) : generator E = 0 := by
+lemma generator_eq_zero (h : E = ⊥) : generator E = 0 := by
   unfold generator
   rw [dif_pos h]
 
@@ -289,25 +286,30 @@ lemma generator_mem : generator E ∈ E := by
   · rw [generator_eq_coeff h,]
     exact SetLike.coe_mem _
 
-private lemma generator_spec (h : E ≠ ⊥) : generator E ∉ (algebraMap K (RatFunc K)).range := by
+lemma generator_spec (h : E ≠ ⊥) : generator E ∉ (algebraMap K (RatFunc K)).range := by
   rw [generator_eq_coeff h]
   intro ⟨f, hf⟩
   apply (exists_ψ_coeff_not_mem h).choose_spec
   exact ⟨f, by ext; exact hf⟩
 
-private lemma generator_ne_C (h : E ≠ ⊥) : ¬ ∃ c, generator E = C c :=
+lemma generator_ne_C (h : E ≠ ⊥) : ¬ ∃ c, generator E = C c :=
   fun ⟨c, hc⟩ ↦ generator_spec h ⟨c, (by simpa using hc.symm)⟩
 
-private lemma generator_ne_zero (h : E ≠ ⊥) : (generator E : RatFunc K) ≠ 0 :=
+lemma transcendental_generator (h : E ≠ ⊥) : Transcendental K (generator E) :=
+  (generator E).transcendental_of_ne_C (generator_ne_C h)
+
+lemma generator_ne_zero (h : E ≠ ⊥) : (generator E : RatFunc K) ≠ 0 :=
   fun H ↦ generator_ne_C h ⟨0, by simp [H]⟩
 
-private lemma adjoin_generator_le : K⟮generator E⟯ ≤ E :=
+lemma adjoin_generator_le : K⟮generator E⟯ ≤ E :=
   adjoin_simple_le_iff.mpr generator_mem
 
 @[no_expose] private noncomputable instance : Algebra K⟮generator E⟯ E :=
   (IntermediateField.inclusion adjoin_generator_le).toAlgebra
 
 variable (E) in
+/-- The integer normalization of `ψ` as a bivariate polynomial. This is an
+auxiliary definition for the proof of Lüroth's theorem. -/
 private noncomputable abbrev Φ' : K[X][Y] :=
   IsLocalization.integerNormalization (nonZeroDivisors K[X]) ((ψ E).map (algebraMap E (RatFunc K)))
 
@@ -315,7 +317,9 @@ private lemma Φ'_ne_zero (h : E ≠ ⊥) : Φ' E ≠ 0 :=
   IsFractionRing.integerNormalization_eq_zero_iff.not.mpr (Polynomial.map_ne_zero (ψ_ne_zero h))
 
 variable (E) in
-private noncomputable abbrev b : K[X] :=
+/-- A polynomial `b` that satisfies `b * ψ = Φ'`. This is an auxiliary
+definition for the proof of Lüroth's theorem. -/
+private noncomputable def b : K[X] :=
   (IsLocalization.integerNormalization_spec (nonZeroDivisors K[X])
     ((ψ E).map (algebraMap E (RatFunc K)))).choose
 
@@ -329,6 +333,8 @@ private lemma Φ'_map :
 
 variable (E) in
 open Classical in
+/-- A rational function `c` that satisfies `c * ψ = Φ`. This is an auxiliary
+definition for the proof of Lüroth's theorem. -/
 private noncomputable abbrev c : RatFunc K :=
   (algebraMap K[X] (RatFunc K) (Φ' E).content)⁻¹ * (algebraMap K[X] (RatFunc K) (b E))
 
@@ -340,6 +346,8 @@ private lemma c_ne_zero (h : E ≠ ⊥) : c E ≠ 0 :=
 
 variable (E) in
 open Classical in
+/-- The primitive part of `Φ'`. This is an auxiliary definition for the proof of
+Lüroth's theorem. -/
 private noncomputable abbrev Φ : K[X][Y] := (Φ' E).primPart
 
 private lemma C_c_mul_ψ (h : E ≠ ⊥) :
@@ -452,6 +460,8 @@ private lemma ψ_dvd_generator_minpolyX :
   exact (generator E).minpolyX_aeval_X
 
 variable (E) in
+/-- A polynomial `q` that satisfies `ψ * q = generator`. This is an auxiliary
+definition for the proof of Lüroth's theorem. -/
 private noncomputable abbrev q : E[X] :=
   (ψ_dvd_generator_minpolyX (E := E)).choose
 
@@ -464,6 +474,8 @@ private lemma q_ne_zero (h : E ≠ ⊥) : q E ≠ 0 := right_ne_zero_of_mul <|
     (generator E).minpolyX_eq_zero_iff.not.mpr (generator_ne_C h)
 
 variable (E) in
+/-- A polynomial `Q₀` with coefficients in `RatFunc K` that satisfies `Q * Φ = θ`.
+This is an auxiliary definition for the proof of Lüroth's theorem. -/
 private noncomputable abbrev Q₀ : (RatFunc K)[X] :=
   Polynomial.C ((algebraMap K[X] (RatFunc K) (generator E).denom) / c E) *
     (q E).map (algebraMap E (RatFunc K))
@@ -474,6 +486,9 @@ private lemma Q₀_ne_zero (h : E ≠ ⊥) : Q₀ E ≠ 0 := by
   · exact Polynomial.map_ne_zero (q_ne_zero h)
 
 variable (E) in
+/-- The bivariate polynomial `g(X) * f(Y) - f(X) * g(Y)`, where `f` and `g` are
+the numerator and denominator of `generator`. This is an auxiliary definition
+for the proof of Lüroth's theorem. -/
 private noncomputable abbrev θ : K[X][Y] :=
   Polynomial.C (generator E).denom * (generator E).num.map Polynomial.C -
   Polynomial.C (generator E).num * (generator E).denom.map Polynomial.C
@@ -511,18 +526,19 @@ private lemma Q₀_mul_Φ (h : E ≠ ⊥) :
     Polynomial.map_mul, Polynomial.map_mul, map_C, map_C, Polynomial.map_map, Polynomial.map_map]
   rfl
 
-attribute [local instance] Polynomial.algebra in
-private lemma isInteger_Q₀ (h : E ≠ ⊥) : IsLocalization.IsInteger K[X][Y] (Q₀ E) := by
+private lemma Q₀_mem_lifts (h : E ≠ ⊥) : Q₀ E ∈ lifts (algebraMap K[X] (RatFunc K)) := by
   classical
-  apply (isInteger_mul_map_iff_left (Φ' E).isPrimitive_primPart (Q₀ E)).mp
+  apply (Φ' E).isPrimitive_primPart.mul_map_mem_lifts_iff.mp
   rw [Q₀_mul_Φ h]
   exact ⟨_, rfl⟩
 
-private noncomputable def Q₁ (h : E ≠ ⊥) : K[X][Y] :=
-  (isInteger_Q₀ h).choose
+/-- A bivariate polynomial `Q₁` that satisfies `Q₁ * Φ = θ`. This is an
+auxiliary definition for the proof of Lüroth's theorem. -/
+private noncomputable abbrev Q₁ (h : E ≠ ⊥) : K[X][Y] :=
+  (Q₀_mem_lifts h).choose
 
 private lemma map_Q₁ (h : E ≠ ⊥) : (Q₁ h).map (algebraMap K[X] (RatFunc K)) = Q₀ E :=
-  (isInteger_Q₀ h).choose_spec
+  (Q₀_mem_lifts h).choose_spec
 
 private lemma Q₁_ne_zero (h : E ≠ ⊥) : Q₁ h ≠ 0 := by
   apply_fun Polynomial.map (algebraMap K[X] (RatFunc K))
@@ -549,7 +565,9 @@ private lemma swap_Q₁_natDegree (h : E ≠ ⊥) : (Bivariate.swap (Q₁ h)).na
   have h₂ : m ≤ (Bivariate.swap (Φ E)).natDegree := le_swap_Φ_natDegree h
   linarith
 
-private noncomputable def Q₂ (h : E ≠ ⊥) : K[X] := (Bivariate.swap (Q₁ h)).coeff 0
+/-- A univariate polynomial `Q₂` that satisfies `Q₂ * Φ = θ`. This is an
+auxiliary definition for the proof of Lüroth's theorem. -/
+private noncomputable abbrev Q₂ (h : E ≠ ⊥) : K[X] := (Bivariate.swap (Q₁ h)).coeff 0
 
 private lemma Q₂_map (h : E ≠ ⊥) : (Q₂ h).map Polynomial.C = Q₁ h := by
   have := eq_C_of_natDegree_eq_zero (swap_Q₁_natDegree h)
@@ -607,7 +625,9 @@ private lemma Q₂_natDegree (h : E ≠ ⊥) : (Q₂ h).natDegree = 0 := by
     rw [← IsUnit.dvd_mul_right (isUnit_C.mpr (isUnit_iff_ne_zero.mpr aeval_denom_ne_zero))]
     exact ⟨Polynomial.C ((aeval α) (generator E).num), eq.symm⟩
 
-private noncomputable def Q₃ (h : E ≠ ⊥) : K := (Q₂ h).coeff 0
+/-- A constant `Q₃` that satisfies `Q₃ * Φ = θ`. This is an auxiliary definition
+for the proof of Lüroth's theorem. -/
+private noncomputable abbrev Q₃ (h : E ≠ ⊥) : K := (Q₂ h).coeff 0
 
 private lemma Q₃_map (h : E ≠ ⊥) : Polynomial.C (Q₃ h) = Q₂ h :=
   (eq_C_of_natDegree_eq_zero (Q₂_natDegree h)).symm
@@ -632,17 +652,20 @@ private lemma swap_Φ_natDegree_eq_θ_natDegree (h : E ≠ ⊥) :
   exact this
 
 set_option backward.isDefEq.respectTransparency false in
-/-- Lüroth's theorem. -/
+/-- Lüroth's theorem. Any intermediate field between `K` and `RatFunc K` is
+generated by a single element `generator E`. See also `transcendental_generator`
+for the statement that the generator is transcendental if `E ≠ ⊥`. -/
 theorem eq_adjoin_generator : E = K⟮(generator E : RatFunc K)⟯ := by
   classical
   by_cases h : E = ⊥
   · rwa [generator_eq_zero h, adjoin_zero]
   refine le_antisymm (relfinrank_eq_one_iff.mp ?_) adjoin_generator_le
-  suffices Module.finrank E (RatFunc K) = Module.finrank K⟮generator E⟯ (RatFunc K) from
-    (mul_eq_right₀ ((this ▸ finrank_pos h).ne.symm)).mp <|
-      this ▸ relfinrank_mul_finrank_top (adjoin_generator_le (E := E))
-  rw [← ψ_natDegree h, ← Φ_natDegree_eq_ψ_natDegree h, finrank_eq_max_natDegree,
-    Φ_natDegree_eq_θ_natDegree h]
+  suffices (ψ E).natDegree = max (generator E).num.natDegree (generator E).denom.natDegree by
+    refine (mul_eq_right₀ ?_).mp <| this ▸ (generator E).finrank_eq_max_natDegree ▸
+      ψ_natDegree h ▸ relfinrank_mul_finrank_top (adjoin_generator_le (E := E))
+    intro H
+    exact generator_ne_C h ((eq_C_iff _).mpr (Nat.max_eq_zero_iff.mp H))
+  rw [← Φ_natDegree_eq_ψ_natDegree h, Φ_natDegree_eq_θ_natDegree h]
   exact le_antisymm (θ_natDegree_le h) (swap_Φ_natDegree_eq_θ_natDegree h ▸ le_swap_Φ_natDegree h)
 
 end Luroth
