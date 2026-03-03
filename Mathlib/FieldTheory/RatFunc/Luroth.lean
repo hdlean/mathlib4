@@ -52,8 +52,8 @@ lemma isInteger_mul_iff_left {f : R[X]} (hf : IsPrimitive f) (g : K[X]) :
   refine ⟨?_, fun h ↦ isInteger_mul h ⟨f, rfl⟩⟩
   intro ⟨k, (hk : Polynomial.map _ _ = _)⟩
   let g' := integerNormalization (nonZeroDivisors R) g
-  obtain ⟨⟨b, hb₁⟩, (hb₂ : Polynomial.map _ g' = _)⟩ :=
-    integerNormalization_map_to_map (nonZeroDivisors R) g
+  obtain ⟨b, hb₁, (hb₂ : Polynomial.map _ g' = _)⟩ :=
+    integerNormalization_spec (nonZeroDivisors R) g
   have g'_mul_f : g' * f = b • k := by
     apply Polynomial.map_injective (algebraMap R K) (FaithfulSMul.algebraMap_injective R K)
     rw [Polynomial.map_smul, algebraMap_smul, hk]
@@ -91,11 +91,13 @@ local notation "K[f]" => Algebra.adjoin K {(f : RatFunc K)}
 theorem adjoin_X : K⟮(X : RatFunc K)⟯ = ⊤ :=
   eq_top_iff.mpr fun g _ ↦ (mem_adjoin_simple_iff _ _).mpr ⟨g.num, g.denom, by simp⟩
 
+set_option backward.isDefEq.respectTransparency false in
 theorem IntermediateField.adjoin_X (E : IntermediateField K (RatFunc K)) :
     E⟮(X : RatFunc K)⟯ = ⊤ := by
   rw [← restrictScalars_eq_top_iff (K := K), restrictScalars_adjoin, eq_top_iff]
   exact le_trans (le_of_eq RatFunc.adjoin_X.symm) (IntermediateField.adjoin.mono _ _ _ (by simp))
 
+set_option backward.isDefEq.respectTransparency false in
 /-- The equivalence between `K⟮f⟯⟮X⟯` and `RatFunc K` as `K⟮f⟯`-algebras. -/
 noncomputable def IntermediateField.adjoinXEquiv (E : IntermediateField K (RatFunc K)) :
     E⟮(X : RatFunc K)⟯ ≃ₐ[E] RatFunc K :=
@@ -118,6 +120,7 @@ theorem minpolyX_map (A : Type*) [CommRing A] [Algebra K A] [Algebra (Algebra.ad
 theorem C_minpolyX (x : K) : (C x).minpolyX K⟮C x⟯ = 0 := by
   simp [minpolyX, sub_eq_zero, Subtype.ext_iff]
 
+set_option backward.isDefEq.respectTransparency false in
 theorem minpolyX_aeval_X : (f.minpolyX K⟮f⟯).aeval (X : RatFunc K) = 0 := by
   simp only [Polynomial.aeval_sub, Polynomial.aeval_map_algebraMap, aeval_X_left_eq_algebraMap,
     map_mul, Polynomial.aeval_C, IntermediateField.algebraMap_apply, coe_algebraMap]
@@ -125,6 +128,7 @@ theorem minpolyX_aeval_X : (f.minpolyX K⟮f⟯).aeval (X : RatFunc K) = 0 := by
   rw [div_mul_cancel₀ _ (algebraMap_ne_zero f.denom_ne_zero)]
   exact sub_self _
 
+set_option backward.isDefEq.respectTransparency false in
 theorem eq_C_of_minpolyX_coeff_eq_zero
   (hf : (f.minpolyX K⟮f⟯).coeff f.denom.natDegree = (0 : RatFunc K)) : ∃ c, f = C c := by
   use f.num.coeff f.denom.natDegree / f.denom.leadingCoeff
@@ -141,9 +145,11 @@ section FNeC
 variable (hf : ¬∃ c, f = C c)
 include hf
 
+set_option backward.isDefEq.respectTransparency false in
 theorem isAlgebraic_adjoin_simple_X : IsAlgebraic K⟮f⟯ (X : RatFunc K) :=
    ⟨f.minpolyX K⟮f⟯, fun H ↦ hf (f.minpolyX_eq_zero_iff.mp H), f.minpolyX_aeval_X⟩
 
+set_option backward.isDefEq.respectTransparency false in
 theorem isAlgebraic_adjoin_simple_X' : Algebra.IsAlgebraic K⟮f⟯ (RatFunc K) := by
   have : Algebra.IsAlgebraic K⟮f⟯ K⟮f⟯⟮(X : RatFunc K)⟯ :=
     isAlgebraic_adjoin_simple <| isAlgebraic_iff_isIntegral.mp <| f.isAlgebraic_adjoin_simple_X hf
@@ -153,6 +159,7 @@ theorem natDegree_denom_le_natDegree_minpolyX :
     f.denom.natDegree ≤ (f.minpolyX K⟮f⟯).natDegree :=
   Polynomial.le_natDegree_of_ne_zero fun H ↦ hf (f.eq_C_of_minpolyX_coeff_eq_zero congr($(H).val))
 
+set_option backward.isDefEq.respectTransparency false in
 theorem natDegree_num_le_natDegree_minpolyX :
     f.num.natDegree ≤ (f.minpolyX K⟮f⟯).natDegree := by
   have f_ne_zero : f ≠ 0 := by
@@ -184,6 +191,7 @@ theorem natDegree_minpolyX :
   · exact max_le (natDegree_num_le_natDegree_minpolyX f hf) <| Polynomial.le_natDegree_of_ne_zero
       fun H ↦ hf (f.eq_C_of_minpolyX_coeff_eq_zero congr($(H).val))
 
+set_option backward.isDefEq.respectTransparency false in
 theorem transcendental_of_ne_C : Transcendental K f := by
   intro H
   have := IntermediateField.isAlgebraic_adjoin_simple H.isIntegral
@@ -191,6 +199,7 @@ theorem transcendental_of_ne_C : Transcendental K f := by
   rw [Algebra.transcendental_iff_not_isAlgebraic] at tr
   exact tr <| Algebra.IsAlgebraic.trans _ _ _ (alg := f.isAlgebraic_adjoin_simple_X' hf)
 
+set_option backward.isDefEq.respectTransparency false in
 theorem irreducible_minpolyX' : Irreducible (f.minpolyX K[f]) := by
   let e := Polynomial.algEquivOfTranscendental K f (f.transcendental_of_ne_C hf)
   let φ : K[X][X] := f.num.map (algebraMap ..) -
@@ -217,6 +226,7 @@ theorem irreducible_minpolyX' : Irreducible (f.minpolyX K[f]) := by
   rw [add_comm, Polynomial.X_mul_C, map_neg, neg_mul]
   exact sub_eq_add_neg (Polynomial.C f.num) (Polynomial.C f.denom * Polynomial.X)
 
+set_option backward.isDefEq.respectTransparency false in
 theorem irreducible_minpolyX : Irreducible (f.minpolyX K⟮f⟯) := by
   haveI : UniqueFactorizationMonoid K[f] :=
     (f.transcendental_of_ne_C hf).uniqueFactorizationMonoid_adjoin
@@ -232,6 +242,7 @@ theorem irreducible_minpolyX : Irreducible (f.minpolyX K⟮f⟯) := by
 
 end FNeC
 
+set_option backward.isDefEq.respectTransparency false in
 theorem finrank_eq_max_natDegree :
     Module.finrank K⟮f⟯ (RatFunc K) = max f.num.natDegree f.denom.natDegree := by
   by_cases hf : ∃ c, f = C c
@@ -246,7 +257,7 @@ theorem finrank_eq_max_natDegree :
     Polynomial.natDegree_C_mul <| inv_ne_zero <| Polynomial.leadingCoeff_ne_zero.mpr fun H ↦
     hf ((minpolyX_eq_zero_iff f).mp H), natDegree_minpolyX]
 
-
+set_option backward.isDefEq.respectTransparency false in
 theorem IntermediateField.isAlgebraic_X (E : IntermediateField K (RatFunc K)) (hE : E ≠ ⊥) :
     IsAlgebraic E (X : RatFunc K) := by
   rw [ne_eq, ← le_bot_iff, SetLike.not_le_iff_exists] at hE
@@ -256,12 +267,15 @@ theorem IntermediateField.isAlgebraic_X (E : IntermediateField K (RatFunc K)) (h
 
 namespace Luroth
 
+set_option backward.isDefEq.respectTransparency false
+
 open Polynomial
 
 open scoped Polynomial.Bivariate
 
 variable {E : IntermediateField K (RatFunc K)}
 
+set_option backward.isDefEq.respectTransparency false in
 lemma finrank_pos (h : E ≠ ⊥) : 0 < Module.finrank E (RatFunc K) := by
   rw [← (IntermediateField.adjoinXEquiv E).toLinearEquiv.finrank_eq,
     adjoin.finrank (IntermediateField.isAlgebraic_X E h).isIntegral]
@@ -341,16 +355,16 @@ private noncomputable abbrev Φ : K[X][Y] := (Φ' E).primPart
 
 variable (E) in
 private noncomputable abbrev b : K[X] :=
-  (IsLocalization.integerNormalization_map_to_map (nonZeroDivisors K[X])
-    ((ψ E).map (algebraMap E (RatFunc K)))).choose.1
+  (IsLocalization.integerNormalization_spec (nonZeroDivisors K[X])
+    ((ψ E).map (algebraMap E (RatFunc K)))).choose
 
 private lemma b_ne_zero : b E ≠ 0 :=
-  nonZeroDivisors.ne_zero <| (IsLocalization.integerNormalization_map_to_map _
-    ((ψ E).map (algebraMap ..))).choose.2
+  nonZeroDivisors.ne_zero <| (IsLocalization.integerNormalization_spec _
+    ((ψ E).map (algebraMap ..))).choose_spec.1
 
 private lemma Φ'_map :
     (Φ' E).map (algebraMap K[X] (RatFunc K)) = (b E) • (ψ E).map (algebraMap E (RatFunc K)) :=
-  (IsLocalization.integerNormalization_map_to_map _ ((ψ E).map (algebraMap ..))).choose_spec
+  (IsLocalization.integerNormalization_spec _ ((ψ E).map (algebraMap ..))).choose_spec.2
 
 variable (E) in
 open Classical in
