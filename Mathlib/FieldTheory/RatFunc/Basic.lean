@@ -517,7 +517,7 @@ variable {K}
 /-- The coercion from polynomials to rational functions, implemented as the algebra map from a
 domain to its field of fractions -/
 @[coe]
-def coePolynomial (P : K[X]) : RatFunc K := algebraMap _ _ P
+def coePolynomial (P : Polynomial K) : RatFunc K := algebraMap _ _ P
 
 instance : Coe (Polynomial K) (RatFunc K) := ⟨coePolynomial⟩
 
