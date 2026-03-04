@@ -354,8 +354,8 @@ private lemma C_c_mul_ψ (h : E ≠ ⊥) :
     Polynomial.C (c E) * (ψ E).map (algebraMap E (RatFunc K)) = (Φ E).map (algebraMap ..) := by
   classical
   rw [map_mul, mul_assoc]
-  conv =>
-    lhs; rhs
+  conv => 
+    enter [1, 2]
     rw [← Polynomial.smul_eq_C_mul, algebraMap_smul, ← Φ'_map, eq_C_content_mul_primPart (Φ' E)]
   rw [Polynomial.map_mul, map_C, ← mul_assoc, ← C_mul, inv_mul_cancel₀,  map_one, one_mul]
   · rw [ne_eq, FaithfulSMul.algebraMap_eq_zero_iff, content_eq_zero_iff]
@@ -419,7 +419,7 @@ private lemma le_Φ_coeff_generatorIndex_natDegree (h : E ≠ ⊥) :
     (generator E).num.natDegree ≤ ((Φ E).coeff (generatorIndex h)).natDegree := by
   classical
   have := congr($(Φ_coeff_generatorIndex h) * algebraMap K[X] (RatFunc K) (generator E).denom)
-  conv at this => rhs; lhs; rhs; rw [← num_div_denom (generator E)]
+  conv at this => enter [2, 1, 2]; rw [← num_div_denom (generator E)]
   rw [mul_assoc, div_mul_cancel₀ _ (algebraMap_ne_zero (generator E).denom_ne_zero),
     ← map_mul, ← map_mul] at this
   replace this := congr($(algebraMap_injective K this).natDegree)
@@ -439,8 +439,8 @@ private lemma le_swap_Φ_natDegree (h : E ≠ ⊥) :
     max (generator E).num.natDegree (generator E).denom.natDegree ≤
       (Bivariate.swap (Φ E)).natDegree := by
   rw [← sum_monomial_eq (Φ E), sum_def, map_sum]
-  conv =>
-    rhs; rhs; rhs; enter [x];
+  conv in (fun _ ↦ _) =>
+    ext
     rw [Bivariate.swap_monomial, mul_comm, ← Polynomial.smul_eq_C_mul,
       ← monomial_one_right_eq_X_pow, ← Polynomial.algebraMap_eq]
   rw [natDegree_sum_eq_of_linearIndepOn _
@@ -521,7 +521,7 @@ private lemma Q₀_mul_Φ (h : E ≠ ⊥) :
     IntermediateField.algebraMap_apply, Polynomial.map_map, Polynomial.map_map, mul_sub,
     ← mul_assoc, ← map_mul, (inclusion adjoin_generator_le).algebraMap_toAlgebra,
     AlgHom.toRingHom_eq_coe, RingHom.coe_coe, coe_inclusion, coe_algebraMap]
-  conv => lhs; rhs; lhs; rhs; rhs; rw [← num_div_denom (generator E)]
+  conv => enter [1, 2, 1, 2, 2]; rw [← num_div_denom (generator E)]
   rw [mul_div_cancel₀ _ (algebraMap_ne_zero (generator E).denom_ne_zero), Polynomial.map_sub,
     Polynomial.map_mul, Polynomial.map_mul, map_C, map_C, Polynomial.map_map, Polynomial.map_map]
   rfl
